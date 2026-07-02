@@ -1,0 +1,38 @@
+# systests/test_scale — plot.scale: data ranges, "nice" ticks, and the data→pixel map (GPU-free core).
+
+import io
+import ndarray
+import plot.scale as scale
+import check
+
+io.print("== plot.scale: axis geometry ==")
+let f = 0
+
+# data_range: exact min/max over a series.
+let vals = ndarray.array([2.0, -1.0, 5.5, 3.0])
+let r = scale.data_range(vals)
+f += check.is_true("data_range lo = -1", r.lo == -1.0)
+f += check.is_true("data_range hi = 5.5", r.hi == 5.5)
+
+# A flat series is widened to a non-degenerate interval (so a flat line still gets an axis).
+let flat = ndarray.array([4.0, 4.0, 4.0])
+let rf = scale.data_range(flat)
+f += check.is_true("flat series widened", rf.hi > rf.lo)
+
+# nice_step: 1/2/5 × a power of ten.
+f += check.is_true("nice_step(10, 2) = 5",   scale.nice_step(10.0, 2) == 5.0)
+f += check.is_true("nice_step(100, 5) = 20", scale.nice_step(100.0, 5) == 20.0)
+
+# ticks: ascending round positions across the range.
+let r2 = scale.Range({.lo = 0.0, .hi = 10.0})
+let tk = scale.ticks(r2, 5)
+f += check.is_true("ticks nonempty",     ndarray.size_of(tk) > 0)
+f += check.is_true("first tick >= lo",   tk[0] >= 0.0)
+f += check.is_true("first tick on step", tk[0] == 0.0)
+
+# to_pixel: linear map onto a pixel span (endpoints + midpoint).
+f += check.is_true("to_pixel lo -> 0",    scale.to_pixel(0.0,  r2, 0.0, 100.0) == 0.0)
+f += check.is_true("to_pixel hi -> 100",  scale.to_pixel(10.0, r2, 0.0, 100.0) == 100.0)
+f += check.is_true("to_pixel mid -> 50",  scale.to_pixel(5.0,  r2, 0.0, 100.0) == 50.0)
+
+check.result(f)

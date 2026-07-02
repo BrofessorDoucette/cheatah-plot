@@ -1,0 +1,36 @@
+# cheatah-plot — biome manifest.
+#
+# Marks this repo as a cheatah standard-library extension: dead-simple cross-platform PLOTTING on
+# Vulkan/Metal devices. A downstream project runs `biome add cheatah-plot`, then `import plot` and
+# draws. cheatah-plot is authored in cheatah (.purr) on top of cheatah-gpu's easy `gpu` layer, plus a
+# small GLFW windowing shim.
+
+[project]
+name = "cheatah-plot"
+
+[cheatah]
+# Toolchain version this extension targets (git tag of the cheatah repo). Bump deliberately.
+version = "0.9.0"
+
+# cheatah-plot draws through cheatah-gpu's easy, cross-platform `gpu` layer (which composes the 1:1
+# gpu.vulkan / gpu.metal surfaces). biome fetches this extension alongside cheatah-plot.
+[dependencies]
+cheatah-gpu = ">=0.4.0"
+
+# [system-dependencies] — the userspace stack a machine needs to build + run cheatah-plot. Windowing
+# (GLFW) is a FIRST-CLASS dependency here (unlike cheatah-gpu, where it is test-only), because plotting
+# owns a window. On Linux the GPU path is Vulkan (loader/layers, via cheatah-gpu); on macOS it is Apple's
+# NATIVE Metal (cheatah-gpu's gpu.metal), so no Vulkan/MoltenVK is needed there — just GLFW + Slang.
+# Kernel/GPU drivers are guided by scripts/doctor.sh.
+[system-dependencies]
+linux-apt    = ["libglfw3-dev", "libvulkan-dev", "vulkan-validationlayers", "vulkan-tools", "glslang-tools", "spirv-tools"]
+linux-dnf    = ["glfw-devel", "vulkan-loader-devel", "vulkan-validation-layers", "vulkan-tools", "glslang", "spirv-tools"]
+linux-pacman = ["glfw", "vulkan-icd-loader", "vulkan-headers", "vulkan-validation-layers", "vulkan-tools", "glslang", "spirv-tools"]
+# macOS uses native Metal — no molten-vk. shader-slang provides slangc (which targets Metal directly).
+macos-brew   = ["glfw", "shader-slang"]
+# slangc (the Slang shader compiler) ships in the LunarG Vulkan SDK; install-deps.sh points the user
+# there if it isn't already on PATH.
+slang        = { sdk = "vulkan", url = "https://vulkan.lunarg.com/sdk/home" }
+# Provisioned + verified by:
+install      = "scripts/install-deps.sh"
+doctor       = "scripts/doctor.sh"

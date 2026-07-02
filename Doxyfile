@@ -1,0 +1,90 @@
+# Doxyfile for cheatah-plot's public API.
+#
+# Used two ways:
+#   • doxygen Doxyfile                       — emit XML (the parser for future site/hover tooling)
+#   • scripts/doc_coverage.sh                — strict, check-only pass that fails on any undocumented
+#                                              public entity (it appends EXTRACT_ALL=NO + WARN_* here)
+
+#---------------------------------------------------------------------------
+# Project
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "cheatah-plot"
+PROJECT_BRIEF          = "Dead-simple cross-platform plotting on the GPU, for cheatah."
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = NO
+ALLOW_UNICODE_NAMES    = YES
+OUTPUT_LANGUAGE        = English
+MARKDOWN_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 5
+AUTOLINK_SUPPORT       = YES
+TAB_SIZE               = 4
+
+# Custom doc tags — structured, separately styled sections (shared with the rest of the ecosystem).
+ALIASES                = "complexity=\xrefitem complexity \"Complexity\" \"Complexity\""
+ALIASES               += "alloc=\xrefitem alloc \"Allocation\" \"Allocation\""
+# Test kinds shown per function and linked to their source by the generator.
+ALIASES               += "crtest=\xrefitem crtest \"Compile-run test\" \"Compile-run test\""
+ALIASES               += "systest=\xrefitem systest \"System test\" \"System test\""
+
+#---------------------------------------------------------------------------
+# Build / extraction
+#---------------------------------------------------------------------------
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_PRIVATE        = NO
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = NO
+SORT_MEMBER_DOCS       = NO
+GENERATE_TODOLIST      = NO
+GENERATE_TESTLIST      = YES
+GENERATE_BUGLIST       = NO
+
+#---------------------------------------------------------------------------
+# Warnings
+#---------------------------------------------------------------------------
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+
+#---------------------------------------------------------------------------
+# Input — the plot package headers (the public API) + their READMEs.
+#---------------------------------------------------------------------------
+INPUT                  = plot
+INPUT_ENCODING         = UTF-8
+FILE_PATTERNS          = *.hpp *.cpp *.md
+RECURSIVE              = YES
+IMPLICIT_DIR_DOCS      = NO
+EXCLUDE_PATTERNS       = */tests/* */systests/* */scripts/* */vendor/*
+# Generated submodule headers (plot/<mod>/<mod>.hpp emitted by purrc --emit-library) carry the authored
+# function docs from their `.purr`, but also a little emitted boilerplate (an operator<<, a
+# pretty-printer, aggregate fields) that is not hand-authored API — and the header cannot be edited (it
+# must byte-match its source). Their doc contract lives in the reviewed `.purr` and they are verified by
+# the systests, so they are excluded from the STRICT hand-written-API doc gate. `plot/plot.hpp` (the
+# hand-written umbrella) is one path segment under plot/ and is NOT matched by this pattern, so it stays
+# gated. This mirrors how cheatah-gpu excludes its generated Vulkan forwarders from the host doc gate.
+EXCLUDE_PATTERNS      += */plot/*/*.hpp
+# Internal implementation helpers (any `detail` namespace) are NOT public API.
+EXCLUDE_SYMBOLS        = *::detail::* *::detail
+
+#---------------------------------------------------------------------------
+# Output: Doxygen is used only as the C++ parser (XML). No HTML/LaTeX, no dot.
+#---------------------------------------------------------------------------
+GENERATE_HTML          = NO
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+XML_PROGRAMLISTING     = NO
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO
+
+#---------------------------------------------------------------------------
+# Preprocessor
+#---------------------------------------------------------------------------
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+SKIP_FUNCTION_MACROS   = YES
+SEARCH_INCLUDES        = YES
+PREDEFINED             =
