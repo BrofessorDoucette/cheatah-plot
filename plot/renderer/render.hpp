@@ -13,9 +13,6 @@
  */
 
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <string>
 
 #include "png.hpp"
@@ -53,22 +50,9 @@ inline Image render(cheatah::figure::Figure& fig) {
     RasterParams params{w, h, bins.tiles_x, detail::kWhite};
     std::vector<std::uint32_t> fb;
 #if defined(CHEATAH_PLOT_GPU_VULKAN) || defined(CHEATAH_PLOT_GPU_METAL)
-    const char* force = std::getenv("CHEATAH_PLOT_FORCE_CPU");
-    const bool force_cpu = force != nullptr && std::strcmp(force, "1") == 0;
-    static bool gpu_failed = false;   // one failed try disables the lane for the process
-    if (!force_cpu && !gpu_failed && gpu_available()) {
-        try {
-            fb = raster_gpu(detail::ctx_of<detail::Context>(), dl, bins, params);
-        } catch (const std::exception& e) {
-            gpu_failed = true;        // the one-time notice — later renders go straight to CPU
-            std::fprintf(stderr,
-                         "cheatah-plot: GPU raster failed (%s) — falling back to the CPU "
-                         "reference rasterizer\n",
-                         e.what());
-        }
-    }
+    if (!try_gpu(dl, bins, params, fb))
 #endif
-    if (fb.size() != static_cast<std::size_t>(w) * h) fb = raster_cpu(dl, bins, params);
+        fb = raster_cpu(dl, bins, params);
     return detail::pack_image(fb, w, h);
 }
 

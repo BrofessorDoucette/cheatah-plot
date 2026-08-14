@@ -186,7 +186,8 @@ public:
         // HERE means the machine has no Vulkan loader/driver at all.
         static const VkResult volk_ok = volkInitialize();
         if (volk_ok != VK_SUCCESS)
-            throw std::runtime_error("cheatah-plot vulkan: no Vulkan loader (volkInitialize failed)");
+            throw std::runtime_error(
+                "cheatah-plot vulkan: no Vulkan loader (volkInitialize failed)");
 #endif
         create_instance();
 #if defined(VOLK_H_)

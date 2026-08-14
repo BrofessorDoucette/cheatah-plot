@@ -15,6 +15,9 @@
  */
 
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <vector>
 
 #include "binning.hpp"
@@ -101,6 +104,45 @@ inline Image render_gpu(cheatah::figure::Figure& fig) {
     std::vector<std::uint32_t> fb =
         raster_gpu(detail::ctx_of<detail::Context>(), dl, bins, params);
     return detail::pack_image(fb, w, h);
+}
+
+}  // namespace cheatah::plot::renderer
+
+namespace cheatah::plot::renderer {
+
+/**
+ * Attempt the default GPU lane for one raster: honours `CHEATAH_PLOT_FORCE_CPU=1`, the cached
+ * @ref gpu_available probe, and a process-wide failure latch — the FIRST device failure prints
+ * a one-time stderr notice and every later render goes straight to the CPU reference (retrying
+ * a broken lane per frame would re-fail and re-allocate forever).
+ *
+ * @param prims The draw list, in paint order.
+ * @param bins The tile bins for @p prims.
+ * @param params The framebuffer size, tile stride, and clear colour.
+ * @param out_fb Receives the device framebuffer on success; untouched on refusal/failure.
+ * @return true when the GPU produced @p out_fb; false to take the CPU path.
+ * @complexity O(pixels + per-tile prim work) on the device.
+ * @alloc the returned framebuffer vector on success.
+ * @gpualloc the five transient buffers of @ref raster_gpu, released either way.
+ * @test plot:gpu
+ */
+inline bool try_gpu(const std::vector<Prim>& prims, const TileBins& bins,
+                    const RasterParams& params, std::vector<std::uint32_t>& out_fb) {
+    const char* force = std::getenv("CHEATAH_PLOT_FORCE_CPU");
+    if (force != nullptr && std::strcmp(force, "1") == 0) return false;
+    static bool gpu_failed = false;   // one failed try disables the lane for the process
+    if (gpu_failed || !gpu_available()) return false;
+    try {
+        out_fb = raster_gpu(detail::ctx_of<detail::Context>(), prims, bins, params);
+        return true;
+    } catch (const std::exception& e) {
+        gpu_failed = true;            // the one-time notice — later renders skip the lane
+        std::fprintf(stderr,
+                     "cheatah-plot: GPU raster failed (%s) — falling back to the CPU "
+                     "reference rasterizer\n",
+                     e.what());
+        return false;
+    }
 }
 
 }  // namespace cheatah::plot::renderer

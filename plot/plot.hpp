@@ -24,7 +24,7 @@
  *   - plot.series   — the mark data + style value every plot call builds.                     [working]
  *   - plot.stats    — histogram binning, the lstsq fit line, error magnitudes.                [working]
  *   - plot.figure   — the figure model: subplots, axes, the fluent building API.              [working]
- *   - plot.renderer — the 2D renderer (offscreen render target -> file or readback).          [roadmap]
+ *   - plot.renderer — the 2D renderer: CPU reference + emulated-Metal + Vulkan lanes.        [working]
  *   - plot.window   — windowing + presentation.                                               [roadmap]
  */
 

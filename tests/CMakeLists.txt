@@ -71,6 +71,7 @@ add_executable(cheatah_plot_tests
     png_test.cpp
     font_test.cpp
     render_test.cpp
+    gpu_raster_test.cpp
 )
 target_include_directories(cheatah_plot_tests PRIVATE ${_cheatah_stdlib}/ndarray)  # header-only ndarray surface
 target_link_libraries(cheatah_plot_tests PRIVATE
@@ -81,6 +82,14 @@ target_link_libraries(cheatah_plot_tests PRIVATE
     GTest::gtest_main
 )
 
+# The GPU lanes, when the top-level configure enabled them: the lane defines + device stacks ride
+# the one interface target, and the kernels must be compiled before the binary runs them. Without
+# the target the same test file builds CPU-only (its GPU cases skip).
+if(TARGET cheatah_plot_gpu)
+    target_link_libraries(cheatah_plot_tests PRIVATE cheatah_plot_gpu)
+    add_dependencies(cheatah_plot_tests cheatah_plot_shaders)
+endif()
+
 # Optional ASan + UBSan (the `asan` preset turns this on). Sanitize the stdlib we compiled too, so the
 # whole binary is instrumented consistently. Valgrind runs the plain debug build.
 if(CHEATAH_PLOT_SANITIZE)
@@ -88,6 +97,12 @@ if(CHEATAH_PLOT_SANITIZE)
         target_compile_options(${_t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     endforeach()
     target_link_options(cheatah_plot_tests PRIVATE -fsanitize=address,undefined)
+    if(TARGET cheatah_plot_gpu)
+        # metal-cpp deliberately calls objc_msgSend through a typed function-pointer cast — its
+        # documented mechanism — so the `function` UBSan check is off on the GPU-enabled binary,
+        # matching cheatah-gpu's own sanitizer gate.
+        target_compile_options(cheatah_plot_tests PRIVATE -fno-sanitize=function)
+    endif()
 endif()
 
 gtest_discover_tests(cheatah_plot_tests)

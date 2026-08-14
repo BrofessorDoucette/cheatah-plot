@@ -10,7 +10,7 @@ let xs = # ... an ndarray of x values
 let ys = # ... an ndarray of y values
 let fig = plot.line(plot.new_figure(), xs, ys)
 fig = plot.title(fig, "my line")
-# renderer lands next: plot.save(fig, "line.png") / plot.render(fig, w, h)
+plot.save(fig, "line.png")     # a real PNG, rendered by cheatah-plot
 ```
 
 The model layers (`plot.scale` / `plot.color` / `plot.series` / `plot.stats` / `plot.figure`) are
@@ -41,21 +41,22 @@ Then `import plot` and draw. `scripts/doctor.sh` verifies your machine is ready 
 | **`plot.series`** | the mark data + style value every plot call builds | working |
 | **`plot.stats`** | histogram binning, the `linalg.lstsq` fit line, error magnitudes | working |
 | **`plot.figure`** | the figure model: subplots, axes, the fluent building API | working |
-| **`plot.renderer`** | the 2D renderer (offscreen render target → file or readback) | roadmap |
+| **`plot.renderer`** | the 2D renderer: CPU reference + bit-exact emulated-Metal + Vulkan lanes | working |
 | **`plot.window`** | windowing + presentation | roadmap |
 
 ## Status
 
-The full figure MODEL works end to end — build figures, marks, axes, palettes, histograms, and
-least-squares fits from cheatah today. The renderer (offscreen, both GPU backends + a CPU
-reference path) is the next layer; `plot.window` follows it.
+The whole stack works end to end: build figures from cheatah, render them to PNGs — on the
+CPU reference rasterizer everywhere, and through the GPU lanes (Vulkan, emulated Metal) when
+a device is present, with `render()` falling back cleanly. Fifteen example programs draw the
+gallery (`examples/purr_plot/`). `plot.window` (presentation) is the next layer.
 
 <!-- coverage:start -->
 | Metric | plot package |
 |--------|--------------|
-| **Lines** | 100.00% (393/393) |
+| **Lines** | 100.00% (394/394) |
 | **Functions** | 100.00% (121/121) |
-| Regions | 97.65% |
+| Regions | 97.51% |
 | Branches | 89.74% |
 <!-- coverage:end -->
 
