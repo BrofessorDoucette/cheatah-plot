@@ -11,7 +11,7 @@ name = "cheatah-plot"
 
 [cheatah]
 # Toolchain version this extension targets (git tag of the cheatah repo). Bump deliberately.
-version = "1.10.0-alpha"
+version = "1.11.4-alpha"
 
 # The renderer dispatches through cheatah-gpu (raw vk.*/mtl.* forwarders + gpu.dispatch math),
 # and device-resident array math rides cheatah-gpu-linalg's linalg overloads. biome fetches
