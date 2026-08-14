@@ -1,96 +1,97 @@
 # cheatah-plot — design & architecture agreements
 
 These are the load-bearing decisions cheatah-plot honors **at all times**. They are recorded here
-(outside `plot/`, so the doc-coverage gate doesn't treat prose as API) because the code under `plot/`
-is currently an **outline** — these notes are the contract the implementation fills in.
+(outside `plot/`, so the doc-coverage gate doesn't treat prose as API) — the contract the
+implementation fills in, layer by layer.
 
 ## What cheatah-plot is
 
-Dead-simple **cross-platform plotting** on the GPU. `import plot`, hand it some numbers, get a window
-with a beautiful plot — on Vulkan or Metal, Linux/macOS today. A small, sharp renderer, not a graphics
-engine. Public and MIT; installed as a cheatah extension via `biome add cheatah-plot`.
+Dead-simple **cross-platform plotting**. `import plot`, hand it some numbers, get a beautiful
+plot — as a PNG or as pixels you read back — with the GPU doing the rasterizing on Vulkan or
+Metal, Linux/macOS today. A small, sharp renderer, not a graphics engine. Public and MIT;
+installed as a cheatah extension via `biome add cheatah-plot`. Headless first: `plot.window`
+(presentation) is a later layer, and nothing in the core depends on it.
 
-## It renders through cheatah-gpu's EASY layer only
+## The layer contract: pure model → own renderer on cheatah-gpu
 
-cheatah-gpu exposes three interfaces (see its `docs/DESIGN.md`): `gpu.vulkan` (1:1 with native Vulkan),
-`gpu.metal` (1:1 with native Metal), and **`gpu`** — the slim, statically-typed, cross-platform layer
-that encapsulates the native detail and does the intelligent optimizations. **cheatah-plot uses ONLY
-the `gpu` easy layer.** It never touches `gpu.vulkan`/`gpu.metal` directly, so a single plot is portable
-across backends with no `#if` in cheatah-plot.
+- **Model layers** (`plot.scale`, `plot.color`, `plot.series`, `plot.stats`, `plot.figure`) are
+  pure cheatah on `ndarray` — no device, fully unit-testable, 100% covered. A Figure is plain
+  data; fluent free functions return modified copies (cheatah values are const).
+- **The renderer is cheatah-plot's OWN layer**, built directly on cheatah-gpu's raw, 1:1
+  forwarders (`vk.*` / `mtl.*`) plus its `gpu.dispatch` workgroup math. cheatah-gpu deliberately
+  offers no high-level convenience layer — consumers own their orchestration — so cheatah-plot
+  owns its context bring-up, buffers, and dispatch, exactly the way cheatah-gpu-linalg owns
+  its compute stack. Backend choice follows cheatah-gpu's platform default (Metal on Apple,
+  Vulkan elsewhere); cheatah-plot carries no per-backend code outside its two context shims.
+- **Reuse before writing** (the house rule): anything that is linear algebra goes through the
+  stdlib `linalg` — and when arrays are device-resident, cheatah-gpu-linalg's `DeviceArray`
+  overloads take over by ADL. `plot.stats` fits with `linalg.lstsq` and measures spreads with
+  `statistics`; the renderer never re-implements math the stack already ships.
 
-- The easy `gpu` layer is **grown as cheatah-plot needs it** — cheatah-plot is the first real consumer
-  and drives what the easy layer must offer (context, buffers/images, swapchain present, offscreen
-  render targets + readback, a 2D pipeline).
-- The easy layer is **built ON the 1:1 layers**: it composes `gpu.vulkan`/`gpu.metal` forwarders and
-  **never reimplements a native call**, so every native call has one implementation (covered by the 1:1
-  device-matrix tests) and the easy layer adds only orchestration + policy.
+## The renderer (design; lands as `plot.renderer`)
+
+Compute-shader rasterization — no graphics pipeline, no swapchain, deterministic output:
+
+```
+plot.figure → reduce (figure → layout → draw list, via plot.scale ticks)
+            → CPU: primitive list in paint order → 16×16 tile binning
+            → ONE Slang source (plot_clear + plot_raster), compiled per backend
+            → storage-buffer RGBA8 framebuffer → save (PNG) or readback (ndarray pixels)
+```
+
+- Primitive set: segments, discs, squares, rects, triangles, glyphs, images — enough for every
+  v1 mark. Per-pixel ordered src-over blending in INTEGER arithmetic (no atomics), so output is
+  deterministic and the CPU reference path is bit-exact against the emulated-Metal lane.
+- The C++ reference rasterizer (`raster_cpu`) doubles as the CPU fallback (machines with no
+  GPU still save PNGs) and the Valgrind/memcheck target; Vulkan-lane goldens use a tight
+  tolerance (float AA confined to coverage by the integer blending).
+- PNG encoding is dependency-free (stored-deflate); the embedded font is a CC0 bitmap subset
+  (provenance in NOTICE).
+
+## Present vs readback
+
+The renderer always draws into an offscreen framebuffer. v1 ships two sinks:
+
+1. **Save** — `save(fig, path)` encodes the framebuffer to a file.
+2. **Readback** — `render(fig, w, h)` returns host pixels (the stream frame).
+
+"Present to a window" is a THIRD sink that `plot.window` adds later without touching the
+renderer. Streaming a live plot to a website without JavaScript stays a first-class goal:
+render offscreen → read back → encode → serve as an HTTP `multipart/x-mixed-replace` stream a
+plain `<img>` tag renders live (roadmap; `plot.stream`).
 
 ## Written in cheatah (`.purr`) as much as possible
 
-The library and its renderer are authored in **cheatah** — like cheatah's own stdlib `requests`/`parsers`
-libraries — and compiled to the shipped headers with `purrc --emit-library` (kept in sync by
-`scripts/gen-headers.sh`; the generated `plot/**/*.hpp` + `.sha512` sidecars are the biome artifact).
-The **only** C++ is a thin shim where C interop is unavoidable — the windowing binding (GLFW). All plot
-logic (tessellation, axes/ticks, layout, the figure API) is statically-typed cheatah on the easy `gpu`
-layer.
+The model layers are authored in **cheatah** and compiled to the shipped headers with
+`purrc --emit-library` (kept in sync by `scripts/gen-headers.sh`; the generated `plot/**/*.hpp`
++ `.sha512` sidecars are the biome artifact). C++ appears only where the renderer meets the
+device (context shims, kernels' CPU stand-ins) — the same split cheatah-gpu-linalg uses.
 
-## The render pipeline — decoupled so a frame can go to a WINDOW or a STREAM
+## Concurrency & memory ownership
 
-```
-plot.figure  →  plot.renderer  →  gpu OFFSCREEN render target (a readable color image)  →  one of:
- (the API)      (tessellate:                                                                 ├─ PRESENT → window swapchain (desktop)
-                 line/axes/text →                                                            └─ READBACK → host image → encode → stream
-                 vertex buffers, draw)
-```
-
-Core principle: **the renderer always draws into an offscreen framebuffer.** "Presenting" is a *separate*
-step with two sinks:
-
-1. **Present** — blit/copy the offscreen image onto a window swapchain image and present it (the desktop
-   path: `figure().show()`).
-2. **Readback** — copy the offscreen image to a host buffer (`figure().frame()` / `save_png()`), for
-   encoding + streaming.
-
-This keeps desktop and headless identical up to the last step, and makes the streaming use case a first-
-class citizen rather than a bolt-on.
-
-### Streaming a live plot to a website — WITHOUT JavaScript (roadmap; `plot.stream`)
-
-To be designed when we get there, but the architecture is built for it: render offscreen → read back →
-encode each frame (e.g. PNG/JPEG) → serve over cheatah's net stack as an HTTP
-`multipart/x-mixed-replace` **MJPEG** stream. A plain HTML `<img src="…">` renders that live, updating in
-place, with **zero JavaScript**. No canvas, no WASM, no client code.
-
-## Concurrency & memory ownership (inherited from cheatah-gpu)
-
-cheatah-plot does **no threading of its own** and follows cheatah-gpu's **no-copy array borrow** model:
-a cheatah `ndarray` handed to `line(x, y)` is leased to the GPU (a non-owning view; the caller keeps
-ownership) under the CPU↔GPU interface guard, released when the draw completes. We never deep-copy the
-user's data to draw it.
-
-## Windowing
-
-**GLFW** is the default windowing backend (create window, poll input, framebuffer size, close, and a
-Vulkan/Metal **surface** for present), behind a thin `plot.window` interface + a small C++ shim.
-**SDL3** may be evaluated as an alternative **only if** it can be pulled in lean (it decreases build
-times and is the most broadly supported); the interface keeps the renderer independent of the choice.
+cheatah-plot does **no threading of its own** and never deep-copies user data to draw it: an
+`ndarray` handed to a mark constructor is shared into the Series (host side), and device
+transfers happen once, at render time, under the renderer's control.
 
 ## Provisioning
 
-`biome add cheatah-plot` → `scripts/install-deps.sh` provisions the userspace stack (GLFW + the Vulkan
-loader/layers + Slang, per platform package manager); `scripts/doctor.sh` verifies it (loader, `slangc`
-compiles a shader, GLFW present). Windows is a roadmap side quest (manual guidance for now).
+`biome add cheatah-plot` → `scripts/install-deps.sh` provisions the userspace GPU stack (the
+Vulkan loader/layers + Slang, per platform package manager); `scripts/doctor.sh` verifies it
+(loader present, `slangc` compiles a shader). The model layers and the CPU render path need
+none of it. Windows is a roadmap side quest (manual guidance for now).
 
 ## Platform support
 
-- **Linux** (apt/dnf/pacman) and **macOS** (brew; native Metal preferred via cheatah-gpu, MoltenVK
-  fallback) are first-class. **Windows** is roadmap.
-- **Backend is chosen at compile time** by cheatah-gpu (`gpu/backend.hpp`); cheatah-plot carries no
-  per-backend code.
+- **Linux** (apt/dnf/pacman) and **macOS** (brew; native Metal via cheatah-gpu) are first-class.
+  **Windows** is roadmap.
+- **Backend is chosen at compile time** following cheatah-gpu's platform default; forcing a
+  lane is a build flag, never runtime branching in plot code.
 
 ## Boundary: cheatah-plot is PUBLIC and generic
 
-cheatah-plot (and cheatah-gpu) contain **zero** knowledge of any proprietary consumer. cheatah-plot
-plots numbers; it knows nothing about trading, market data, models, or any downstream domain. Downstream
-proprietary projects consume cheatah-plot as a dependency and keep **all** of their usage on their side
-of the boundary — never referenced from, or leaked into, the cheatah repos.
+cheatah-plot (and cheatah-gpu) contain **zero** knowledge of any proprietary consumer.
+cheatah-plot plots numbers; it knows nothing about trading, market data, models, or any
+downstream domain. Downstream proprietary projects consume cheatah-plot as a dependency and
+keep **all** of their usage on their side of the boundary — never referenced from, or leaked
+into, the cheatah repos. `scripts/check_no_private_refs.sh` enforces this mechanically (tree,
+commit messages, and the pre-push range scan).

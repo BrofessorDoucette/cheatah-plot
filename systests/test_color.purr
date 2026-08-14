@@ -1,0 +1,42 @@
+# systests/test_color — plot.color: colours, palettes, and colormaps through the cheatah runtime.
+
+import io
+import plot.color as color
+import check
+
+io.print("== plot.color: colours + palettes ==")
+let f = 0
+
+# rgb/rgba and the auto sentinel.
+let steel = color.rgb(0.2, 0.4, 0.8)
+f += check.is_true("rgb is opaque", steel.a == 1.0)
+f += check.is_true("rgb keeps channels", steel.g == 0.4)
+let ghost = color.auto_color()
+f += check.is_true("auto sentinel", color.is_auto(ghost))
+f += check.is_true("real colour is not auto", color.is_auto(steel) == false)
+
+# lerp: midpoint of black -> white.
+let mid = color.lerp(color.rgb(0.0, 0.0, 0.0), color.rgb(1.0, 1.0, 1.0), 0.5)
+f += check.is_true("lerp midpoint", mid.r == 0.5)
+
+# Colormaps hit their anchor ends.
+let v0 = color.viridis(0.0)
+f += check.is_true("viridis dark end", v0.r < 0.3)
+let v1 = color.viridis(1.0)
+f += check.is_true("viridis bright end", v1.g > 0.85)
+
+# tab10 cycles ten colours; the dark palette darkens them.
+let pal = color.tab10()
+f += check.eq_int("tab10 size", len(pal), 10)
+let dark = color.palette("dark")
+let base0 = pal[0]
+let dark0 = dark[0]
+f += check.is_true("dark palette darkens", dark0.r < base0.r)
+
+# The named table resolves; unknown names fall back to opaque black.
+let teal = color.named("teal")
+f += check.is_true("named teal", teal.b > 0.4)
+let unknown = color.named("no-such-color")
+f += check.is_true("unknown named is black", unknown.r == 0.0)
+
+check.result(f)

@@ -1,0 +1,51 @@
+# systests/test_figure — plot.figure: the fluent model end to end — grids, targeting, marks,
+# axes, and the value-semantics contract (fluent calls return copies).
+
+import io
+import ndarray
+import plot.figure as figure
+import check
+
+io.print("== plot.figure: the fluent model ==")
+let f = 0
+
+# A 2x2 grid with subplot targeting.
+let g = figure.grid(2, 2)
+f += check.eq_int("grid cells", len(g.subplots), 4)
+let g2 = figure.subplot(g, 1, 1)
+f += check.eq_int("targeted cell", g2.cur, 3)
+f += check.eq_int("seed figure untouched", g.cur, 0)
+
+# The fluent chain builds series in the targeted cell.
+let x = ndarray.array([0.0, 1.0, 2.0])
+let y = ndarray.array([1.0, 2.0, 3.0])
+let built = figure.line(figure.new_figure(), x, y)
+built = figure.scatter(built, x, y)
+built = figure.title(built, "demo")
+built = figure.xlabel(built, "t")
+built = figure.ylim(built, 0.0, 4.0)
+built = figure.yscale(built, figure.log_scale())
+built = figure.legend(built, true)
+let sp = built.subplots[0]
+f += check.eq_int("two marks", len(sp.series), 2)
+f += check.is_true("title set", sp.title == "demo")
+f += check.is_true("xlabel set", sp.x.label == "t")
+f += check.is_true("ylim hi", sp.y.hi == 4.0)
+f += check.is_true("y is log", sp.y.scale.kind == "log")
+f += check.is_true("legend on", sp.legend)
+
+# hist flows through plot.stats into touching bars.
+let data = ndarray.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+let hg = figure.hist(figure.new_figure(), data, 5)
+let hs = hg.subplots[0]
+f += check.eq_int("hist mark", len(hs.series), 1)
+let hb = hs.series[0]
+f += check.is_true("hist bars", hb.kind == "bar")
+f += check.is_true("hist touching", hb.width == 1.0)
+
+# size clamps to a sane floor.
+let tiny = figure.size(figure.new_figure(), 1, -5)
+f += check.eq_int("size floor w", tiny.width, 64)
+f += check.eq_int("size floor h", tiny.height, 64)
+
+check.result(f)

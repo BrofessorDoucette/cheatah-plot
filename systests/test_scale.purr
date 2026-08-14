@@ -35,4 +35,17 @@ f += check.is_true("to_pixel lo -> 0",    scale.to_pixel(0.0,  r2, 0.0, 100.0) =
 f += check.is_true("to_pixel hi -> 100",  scale.to_pixel(10.0, r2, 0.0, 100.0) == 100.0)
 f += check.is_true("to_pixel mid -> 50",  scale.to_pixel(5.0,  r2, 0.0, 100.0) == 50.0)
 
+# log_ticks: decade marks across a log range; 1-2-5 subdivision inside a short one.
+let lr = scale.Range({.lo = 1.0, .hi = 100.0})
+let lt = scale.log_ticks(lr, 5)
+f += check.eq_int("log_ticks decades", ndarray.size_of(lt), 3)
+f += check.is_true("log_ticks first = 1",   lt[0] == 1.0)
+f += check.is_true("log_ticks last = 100",  lt[2] == 100.0)
+let sr = scale.Range({.lo = 1.0, .hi = 9.0})
+let stk = scale.log_ticks(sr, 4)
+f += check.eq_int("log_ticks 1-2-5", ndarray.size_of(stk), 3)
+
+# to_pixel_log: the log midpoint of [1, 100] is 10.
+f += check.is_true("to_pixel_log mid", scale.to_pixel_log(10.0, lr, 0.0, 100.0) == 50.0)
+
 check.result(f)

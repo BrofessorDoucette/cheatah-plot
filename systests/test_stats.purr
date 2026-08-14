@@ -1,0 +1,38 @@
+# systests/test_stats — plot.stats: histogram binning, the lstsq fit line, and SEM end to end
+# (the fit exercises linalg.lstsq and sem exercises statistics.stdev through the runtime).
+
+import io
+import ndarray
+import plot.stats as stats
+import check
+
+io.print("== plot.stats: binning + fit + sem ==")
+let f = 0
+
+# Histogram of 0..9 in 5 bins: 2 per bin, 6 edges, top value folded into the last bin.
+let data = ndarray.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+let h = stats.histogram(data, 5)
+f += check.eq_int("hist edges", ndarray.size_of(h.edges), 6)
+f += check.eq_int("hist bins", ndarray.size_of(h.counts), 5)
+let total = 0.0
+for i in range(5) {
+    total = total + h.counts[i]
+}
+f += check.is_true("hist total = n", total == 10.0)
+f += check.is_true("hist last bin holds the top", h.counts[4] == 2.0)
+
+# The least-squares line recovers an exact linear relation (linalg.lstsq under the hood).
+let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+let y = ndarray.array([1.0, 3.0, 5.0, 7.0])
+let fitted = stats.fit(x, y)
+let d0 = fitted[0] - 1.0
+let d3 = fitted[3] - 7.0
+f += check.is_true("fit start", d0 * d0 < 0.000001)
+f += check.is_true("fit end", d3 * d3 < 0.000001)
+
+# SEM of {1,2,3,4}: stdev/sqrt(4) = sqrt(5/3)/2 (statistics.stdev under the hood).
+let s = stats.sem(ndarray.array([1.0, 2.0, 3.0, 4.0]))
+let ds = s - 0.6454972243679028
+f += check.is_true("sem value", ds * ds < 0.000000000001)
+
+check.result(f)

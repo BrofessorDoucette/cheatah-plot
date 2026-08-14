@@ -1,16 +1,17 @@
 #pragma once
 
-// cheatah-deps: math ndarray
+// cheatah-deps: linalg math ndarray statistics
 
 /**
  * @file plot.hpp
  * @brief `import plot` — the easy, cross-platform plotting API.
  *
- * cheatah-plot draws a plot in a few lines, on whatever GPU you have. It renders through cheatah-gpu's
- * easy, cross-platform `gpu` layer (which composes the 1:1 `gpu.vulkan` / `gpu.metal` surfaces), presents
- * to a GLFW window OR to an offscreen framebuffer you can read back (to stream a live plot — e.g. to a
- * website, without JavaScript), and is authored in cheatah (`.purr`) as much as possible. See
- * docs/DESIGN.md.
+ * cheatah-plot draws a plot in a few lines. The model layers (scale/color/series/stats/figure)
+ * are pure cheatah on `ndarray` — fully testable with no device — and the renderer is
+ * cheatah-plot's OWN layer built directly on cheatah-gpu's raw Vulkan/Metal forwarders:
+ * compute-shader rasterization into an offscreen framebuffer you save to a file or read back
+ * as pixels (to stream a live plot — e.g. to a website, without JavaScript). Headless first;
+ * windowing stays roadmap. See docs/DESIGN.md.
  *
  * This umbrella is the one hand-written C++ in the package — pure `#include`s of the generated submodule
  * headers, no logic — so `import plot` (and `import plot.<sub>`) resolve the whole `cheatah::plot::*`
@@ -18,12 +19,19 @@
  * committed header by `scripts/gen-headers.sh`.
  *
  * Submodules:
- *   - plot.scale    — the pure axis geometry: data ranges, "nice" ticks, the data→pixel map.  [working]
- *   - plot.figure   — the ergonomic figure API (figure().line(x, y).show()).                  [roadmap]
- *   - plot.renderer — the 2D renderer (offscreen render target -> present or readback).        [roadmap]
- *   - plot.window   — windowing + surface (GLFW backend).                                      [roadmap]
+ *   - plot.scale    — the pure axis geometry: ranges, "nice" linear + log ticks, data→pixel.  [working]
+ *   - plot.color    — colours, categorical palettes, viridis/magma/coolwarm colormaps.        [working]
+ *   - plot.series   — the mark data + style value every plot call builds.                     [working]
+ *   - plot.stats    — histogram binning, the lstsq fit line, error magnitudes.                [working]
+ *   - plot.figure   — the figure model: subplots, axes, the fluent building API.              [working]
+ *   - plot.renderer — the 2D renderer (offscreen render target -> file or readback).          [roadmap]
+ *   - plot.window   — windowing + presentation.                                               [roadmap]
  */
 
+#include "color/color.hpp"
 #include "scale/scale.hpp"
+#include "series/series.hpp"
+#include "stats/stats.hpp"
+#include "figure/figure.hpp"
 
 namespace cheatah::plot {}

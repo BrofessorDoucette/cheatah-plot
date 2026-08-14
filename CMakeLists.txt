@@ -23,7 +23,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(cheatah_plot INTERFACE)
 add_library(cheatah::plot ALIAS cheatah_plot)
 target_include_directories(cheatah_plot INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    # The package dir itself: generated submodule headers include the umbrella as "plot.hpp"
+    # (the module-path spelling purrc emits for cross-module imports).
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/plot>)
 target_compile_features(cheatah_plot INTERFACE cxx_std_20)
 
 # Everything below is for building/testing THIS repo standalone; when cheatah-plot is fetched as a

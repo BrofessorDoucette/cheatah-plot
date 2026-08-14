@@ -1,0 +1,302 @@
+# plot.series — the data + style of ONE drawable mark set: the value every plot call builds.
+#
+# `import plot.series as series`.
+#
+# A Series is plain data — arrays plus style fields — with its `kind` set by the constructor
+# ("line", "scatter", "bar", "area", "step", "errorbar", "fill_between", "stem", "heatmap").
+# Constructors come in two arities: the simple form (`line(x, y)`) fills the house defaults, and
+# the `_styled` form takes the full style set explicitly (cheatah has no default arguments — two
+# honest arities beat one unreadable one). Sentinels: a Color with alpha 0 means "auto: next
+# palette colour" (plot.color), an empty dash array means solid, an empty `by` means one group.
+#
+# The figure layer owns composition (subplots, auto-limits, palettes); the renderer consumes the
+# resolved series. This module is pure data — no device, fully testable.
+
+import ndarray
+import plot.color as color
+
+# One drawable mark set: the data arrays and the style that draws them.
+struct Series {
+    kind   : str              # "line" | "scatter" | "bar" | "area" | "step" | "errorbar" | "fill_between" | "stem" | "heatmap".
+    x      : ndarray<float>   # x positions (bin centers for hist-like bars; empty for heatmap).
+    y      : ndarray<float>   # y values (empty for heatmap and fill_between).
+    ylo    : ndarray<float>   # lower band/error bound (errorbar, fill_between; empty otherwise).
+    yhi    : ndarray<float>   # upper band/error bound (errorbar, fill_between; empty otherwise).
+    z      : ndarray<float>   # the 2-D value grid (heatmap only; empty otherwise).
+    by     : list<int>        # per-point group ids for colour-by grouping (empty = one group).
+    color  : color.Color      # the draw colour; alpha 0 = auto (next palette colour).
+    width  : float            # line / bar-edge width in pixels (bars: the fraction of a slot).
+    size   : float            # marker size in pixels (scatter/stem heads).
+    dash   : ndarray<float>   # dash pattern [on, off, ...] in pixels; empty = solid.
+    marker : str              # marker shape name: "circle" | "square" | "diamond"; "" = none.
+    label  : str              # legend label; "" = unlabeled (kept out of the legend).
+    fill   : bool             # filled (bar/area) vs outline-only.
+}
+
+# The neutral Series every constructor starts from: empty arrays, auto colour, house widths,
+# solid stroke, no marker, no label, filled — ONE place the defaults live.
+#
+# @param kind the mark kind the constructor is building.
+# @return the neutral Series with @p kind set.
+# @complexity O(1).
+# @alloc the Series (empty arrays).
+# @systest systests/test_series.purr
+fn blank(kind : str) -> Series {
+    let empty_by : list<int> = []
+    return Series({.kind = kind,
+                   .x = ndarray.zeros([0]),
+                   .y = ndarray.zeros([0]),
+                   .ylo = ndarray.zeros([0]),
+                   .yhi = ndarray.zeros([0]),
+                   .z = ndarray.zeros([0]),
+                   .by = empty_by,
+                   .color = color.auto_color(),
+                   .width = 1.5,
+                   .size = 6.0,
+                   .dash = ndarray.zeros([0]),
+                   .marker = "",
+                   .label = "",
+                   .fill = true})
+}
+
+# A dash pattern from on/off pixel lengths — the common two-segment pattern (pass it to the
+# `_styled` constructors; an empty dash array means solid).
+#
+# @param on the drawn segment length in pixels (> 0).
+# @param off the gap length in pixels (> 0).
+# @return the two-element dash array [on, off].
+# @complexity O(1).
+# @alloc the returned array.
+# @systest systests/test_series.purr
+fn dash_pattern(on : float, off : float) -> ndarray<float> {
+    let d = ndarray.zeros([2])
+    d[0] = on
+    d[1] = off
+    return d
+}
+
+# A line through (x, y) with the house defaults (auto colour, width 1.5, solid).
+#
+# @param x the x positions.
+# @param y the y values (same length).
+# @return the line Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn line(x : ndarray<float>, y : ndarray<float>) -> Series {
+    let s = blank("line")
+    s.x = x
+    s.y = y
+    return s
+}
+
+# A line with the full style set: colour, width, dash pattern, legend label.
+#
+# @param x the x positions.
+# @param y the y values (same length).
+# @param c the line colour (alpha 0 = auto).
+# @param width the line width in pixels.
+# @param dash the dash pattern [on, off, ...]; empty = solid.
+# @param label the legend label ("" = unlabeled).
+# @return the styled line Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn line_styled(x : ndarray<float>, y : ndarray<float>, c : color.Color, width : float,
+               dash : ndarray<float>, label : str) -> Series {
+    let s = line(x, y)
+    s.color = c
+    s.width = width
+    s.dash = dash
+    s.label = label
+    return s
+}
+
+# Scatter points at (x, y) with the house defaults (auto colour, size 6, circle markers).
+#
+# @param x the x positions.
+# @param y the y values (same length).
+# @return the scatter Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn scatter(x : ndarray<float>, y : ndarray<float>) -> Series {
+    let s = blank("scatter")
+    s.x = x
+    s.y = y
+    s.marker = "circle"
+    return s
+}
+
+# Scatter with the full style set: colour, marker size and shape, legend label.
+#
+# @param x the x positions.
+# @param y the y values (same length).
+# @param c the marker colour (alpha 0 = auto).
+# @param size the marker size in pixels.
+# @param marker the marker shape: "circle" | "square" | "diamond".
+# @param label the legend label ("" = unlabeled).
+# @return the styled scatter Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn scatter_styled(x : ndarray<float>, y : ndarray<float>, c : color.Color, size : float,
+                  marker : str, label : str) -> Series {
+    let s = scatter(x, y)
+    s.color = c
+    s.size = size
+    s.marker = marker
+    s.label = label
+    return s
+}
+
+# Scatter with per-point group ids: points in the same group share a palette colour, and each
+# group can take its own legend entry at the figure layer.
+#
+# @param x the x positions.
+# @param y the y values (same length).
+# @param by the per-point group ids (same length; small non-negative ints).
+# @return the grouped scatter Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn scatter_grouped(x : ndarray<float>, y : ndarray<float>, by : list<int>) -> Series {
+    let s = scatter(x, y)
+    s.by = by
+    return s
+}
+
+# Vertical bars at x with heights y, the house defaults (auto colour, 0.8 slot fraction, filled).
+#
+# @param x the bar positions (typically category centers).
+# @param y the bar heights (same length).
+# @return the bar Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn bar(x : ndarray<float>, y : ndarray<float>) -> Series {
+    let s = blank("bar")
+    s.x = x
+    s.y = y
+    s.width = 0.8
+    return s
+}
+
+# Bars with the full style set: colour, slot-fraction width, fill vs outline, legend label.
+#
+# @param x the bar positions.
+# @param y the bar heights (same length).
+# @param c the bar colour (alpha 0 = auto).
+# @param width the bar width as a fraction of one slot (0..1].
+# @param fill true = filled bars, false = outlines.
+# @param label the legend label ("" = unlabeled).
+# @return the styled bar Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn bar_styled(x : ndarray<float>, y : ndarray<float>, c : color.Color, width : float,
+              fill : bool, label : str) -> Series {
+    let s = bar(x, y)
+    s.color = c
+    s.width = width
+    s.fill = fill
+    s.label = label
+    return s
+}
+
+# A filled area between y and the x axis (auto colour).
+#
+# @param x the x positions.
+# @param y the top edge values (same length).
+# @return the area Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn area(x : ndarray<float>, y : ndarray<float>) -> Series {
+    let s = blank("area")
+    s.x = x
+    s.y = y
+    return s
+}
+
+# A step line through (x, y): each value holds until the next x (auto colour, width 1.5).
+#
+# @param x the x positions.
+# @param y the y values (same length).
+# @return the step Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn step(x : ndarray<float>, y : ndarray<float>) -> Series {
+    let s = blank("step")
+    s.x = x
+    s.y = y
+    return s
+}
+
+# Points with asymmetric error bars: whiskers span [ylo, yhi] at each x.
+#
+# @param x the x positions.
+# @param y the central values (same length).
+# @param ylo the lower whisker ends (absolute values, same length).
+# @param yhi the upper whisker ends (absolute values, same length).
+# @return the errorbar Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn errorbar(x : ndarray<float>, y : ndarray<float>, ylo : ndarray<float>,
+            yhi : ndarray<float>) -> Series {
+    let s = blank("errorbar")
+    s.x = x
+    s.y = y
+    s.ylo = ylo
+    s.yhi = yhi
+    return s
+}
+
+# A filled band between two curves: [ylo, yhi] at each x (auto colour).
+#
+# @param x the x positions.
+# @param ylo the band's lower edge (same length).
+# @param yhi the band's upper edge (same length).
+# @return the fill_between Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn fill_between(x : ndarray<float>, ylo : ndarray<float>, yhi : ndarray<float>) -> Series {
+    let s = blank("fill_between")
+    s.x = x
+    s.ylo = ylo
+    s.yhi = yhi
+    return s
+}
+
+# Stems: a vertical line from the x axis to each (x, y), topped with a marker.
+#
+# @param x the x positions.
+# @param y the stem heights (same length).
+# @return the stem Series.
+# @complexity O(1) — the arrays are shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn stem(x : ndarray<float>, y : ndarray<float>) -> Series {
+    let s = blank("stem")
+    s.x = x
+    s.y = y
+    s.marker = "circle"
+    return s
+}
+
+# A heatmap of a row-major 2-D grid: cell (row, col) is coloured by z through a colormap at the
+# figure layer.
+#
+# @param z the 2-D value grid (row-major ndarray, shape [rows, cols]).
+# @return the heatmap Series.
+# @complexity O(1) — the grid is shared, not copied.
+# @alloc the Series.
+# @systest systests/test_series.purr
+fn heatmap(z : ndarray<float>) -> Series {
+    let s = blank("heatmap")
+    s.z = z
+    return s
+}

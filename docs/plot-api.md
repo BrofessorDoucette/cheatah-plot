@@ -1,11 +1,16 @@
 # cheatah-plot — the `import plot` API (design outline)
 
-This is the **user-facing API outline**: how people will actually plot with cheatah-plot. It is written
-first, deliberately, because it dictates what the renderer needs — and therefore what the third,
-**easy `gpu`** API in cheatah-gpu must provide (see the last section). Nothing here is GPU-specific;
-the pure model + ergonomics are what we lock down now.
+This is the **user-facing API outline**: how people will actually plot with cheatah-plot. It was
+written first, deliberately, because it dictates what the renderer needs. Nothing here is
+GPU-specific; the pure model + ergonomics were locked down first.
 
-Status: proposal for review. `plot.scale` is the only piece implemented so far.
+Status: the model layers are IMPLEMENTED — `plot.scale` (with log ticks), `plot.color`,
+`plot.series`, `plot.stats`, `plot.figure` — with three conventions that emerged from cheatah
+itself (recorded inline below): constructors come in two arities instead of default arguments
+(`line(x, y)` / `line_styled(...)` — cheatah has no default params); palettes are `list<Color>`
+(cheatah's `ndarray` holds numeric fields); and the fluent surface is free functions returning
+modified copies (`figure.line(f, x, y)`), since cheatah values are const. The renderer is the
+next layer (see "The render seam" below for its actual design).
 
 ## Two audiences, one library
 
@@ -444,85 +449,51 @@ plot.figure()
 
 - **Marker set & names** (`plot.circle/square/diamond/…`) — which shapes ship first.
 - **Named-colour table** scope (a handful vs a full CSS set) and default **palette** (`tab10`-like?).
-- **`render()` pixel type**: `ndarray<Color>` (float RGBA, clean) vs a packed `ndarray<u8x4>` (smaller,
-  encode-ready) — a borrow-model + memory question that pairs with the easy `gpu` readback format.
+- **`render()` pixel type**: `ndarray<Color>` (float RGBA, clean) vs a packed byte layout (smaller,
+  encode-ready) — pairs with the renderer's RGBA8 framebuffer format.
 
 ## Module map (mostly `.purr`, on `linalg` / `ndarray` / `statistics` / `random`)
 
 | module | what | deps | status |
 |---|---|---|---|
-| `plot.scale` | data↔pixel, "nice" ticks (pure geometry) | ndarray, math | **done** |
-| `plot.color` | typed colors, palettes, categorical color assignment | (random for qualitative palettes) | new |
-| `plot.series` | the `Series` structs + named constructors (line/scatter/bar/area/errorbar/hist) | ndarray | new |
-| `plot.stats` | histogram binning, error helpers, least-squares fit, density | statistics, linalg | new |
-| `plot.figure` | `Figure`/`Subplot` model, the fluent builder + the `Fig` spec, layout/legend (uses `plot.scale`) | ndarray | new |
-| `plot.renderer` | `Figure` → 2D draw primitives → easy `gpu` offscreen target → present/readback | **cheatah-gpu** | roadmap |
-| `plot.window` | GLFW surface behind a thin interface + shim | GLFW (C shim) | roadmap |
-| `plot` (umbrella) | the easy entry: `figure()`, top-level `line/scatter/hist/...`, `show/save` | aggregates the above | new |
+| `plot.scale` | data↔pixel (linear + log), "nice" linear + log ticks (pure geometry) | ndarray, math | **done** |
+| `plot.color` | typed colors, `list<Color>` palettes, viridis/magma/coolwarm colormaps | math | **done** |
+| `plot.series` | the `Series` struct + two-arity constructors (line/scatter/bar/area/step/errorbar/fill_between/stem/heatmap) | ndarray, plot.color | **done** |
+| `plot.stats` | histogram binning, `linalg.lstsq` fit line, SEM | statistics, linalg, plot.scale | **done** |
+| `plot.figure` | `Figure`/`Subplot` model + the fluent free-function builder (uses `plot.stats`) | ndarray, plot.series, plot.stats | **done** |
+| `plot.renderer` | `Figure` → draw list → compute-raster offscreen framebuffer → file or readback | **cheatah-gpu** (raw forwarders) | roadmap |
+| `plot.window` | windowing + presentation behind a thin interface | TBD | roadmap |
+| `plot` (umbrella) | the whole `plot.*` surface in one import | aggregates the above | **done** |
 
-Everything except `plot.renderer`/`plot.window` (and the tiny GLFW shim) is **pure cheatah on the
-stdlib** — no GPU needed to build, test, and document it, exactly like `plot.scale` today.
+Everything except `plot.renderer`/`plot.window` is **pure cheatah on the stdlib** — no GPU needed
+to build, test, and document it.
 
-## The render seam → what the easy `gpu` API must provide (the next step)
+## The render seam — the renderer's actual design (next layer)
 
-The renderer reduces *any* `Figure` to a tiny, backend-agnostic set of 2D primitives, drawn into an
-**offscreen** target that is then **presented to a window** or **read back to host** (the no-JS streaming
-path). That reduction is the contract that tells cheatah-gpu what its easy layer needs.
+cheatah-gpu deliberately offers no high-level convenience layer — consumers own their
+orchestration on its raw, 1:1 forwarders (`vk.*` / `mtl.*`) and `gpu.dispatch` math. So the
+renderer is **cheatah-plot's own layer**, the same way cheatah-gpu-linalg owns its compute
+stack, and it is a *compute* rasterizer — no graphics pipeline, no swapchain:
 
-The reduction is **vectorized on ndarray + linalg**, never a per-point loop: each series' data→pixel map
-is a single **`linalg` affine** (a 2×3 transform built from the per-axis linear maps `plot.scale`
-provides) applied to the series' `ndarray<Vec2>`; markers/bars/glyphs are then instanced from those
-transformed points. So the hot path is a handful of matrix-times-array ops, and its output is the
-`ndarray<Vertex>` the GPU borrows.
+1. **reduce**: `Figure` → layout (via `plot.scale` ticks + limits) → a flat primitive list in
+   paint order. Bulk coordinate transforms are ndarray elementwise ops (reused, not hand-rolled
+   — and device-resident arrays dispatch to cheatah-gpu-linalg's overloads by ADL).
+2. **bin**: primitives → 16×16 screen tiles (CPU; the per-tile lists bound the kernel's work).
+3. **raster**: ONE Slang source (`plot_clear` + `plot_raster`), compiled per backend exactly
+   like cheatah-gpu-linalg's kernels, blends primitives per pixel in INTEGER src-over order —
+   no atomics, deterministic output — into a storage-buffer RGBA8 framebuffer.
+4. **sink**: `save(fig, path)` (dependency-free PNG) or `render(fig, w, h)` (host-pixel
+   readback — the no-JS streaming frame). Presenting to a window is a third sink `plot.window`
+   adds later without touching the renderer.
 
-The renderer's output is itself ndarray-native: it fills an **`ndarray<Vertex>`** (a `Vertex` being a
-fixed-size POD struct — pixel position, RGBA colour, UV) plus a small draw list. Per cheatah-gpu's
-**no-copy borrow model** (`cheatah-gpu/docs/DESIGN.md` §"Concurrency & memory ownership"), the GPU does
-**not** copy or "upload" that array — a **GPU lease** hands the backend a *non-owning view* of it, pins it
-(the user keeps ownership), and a mutex on the CPU↔GPU interface keeps it from being mutated/freed/moved
-while the GPU reads it. So the vertex `ndarray` the renderer builds is *borrowed*, not uploaded.
+Primitive set (covers every v1 mark): segments, discs, squares, rects, triangles, glyphs
+(embedded CC0 bitmap font), images (heatmap cells). A C++ reference rasterizer (`raster_cpu`)
+is the CPU fallback on no-GPU machines, the emulated-Metal stand-in (bit-exact against the
+kernels), and the Valgrind target.
 
-Primitives the renderer emits (pixel-space, as `Vertex` runs + a draw list):
-- **stroked polylines** — series lines, axes, gridlines (width, color, optional dash)
-- **filled convex shapes / quads** — bars, area fills, legend swatches, marker glyphs
-- **points / markers** — instanced small quads (circle/square/…), color + size
-- **text runs** — glyphs from an atlas → textured quads (tick labels, axis labels, legend, title)
-- **clip rect** — restrict drawing to a subplot
+Build order (1 is DONE):
 
-So the **easy `gpu` API (cheatah-gpu) must offer**, at minimum:
-1. a **headless-capable device/context**;
-2. an **offscreen RGBA8 color target** of W×H, with a render pass + clear color;
-3. a **2D draw surface** that **borrows** an `ndarray<Vertex>` via a lease (no copy) and draws
-   triangles/lines from it — with a **pixel-space ortho** transform and **alpha blending**; two pipelines
-   suffice (solid-color, and textured for glyphs);
-4. **present** the target to a swapchain (window) **OR** **read back** its pixels into a host
-   `ndarray` (again a borrowed, ownership-retained target) — the no-JS streaming path.
-
-That is deliberately small — a 2D drawing surface + offscreen + present/readback, all over the borrow
-model.
-
-**This easy `gpu` layer does not exist yet — it is the THIRD cheatah-gpu API we have to create.**
-cheatah-gpu ships two 1:1 native surfaces today, `gpu.vulkan` and `gpu.metal`; the easy `gpu` layer is a
-new, slim, cross-platform tier **built on top of them — it composes their forwarders and never
-reimplements a native call**, so every native call keeps exactly one implementation (covered by the 1:1
-device-matrix tests) and the easy layer adds only the orchestration: the borrow-model lease, the
-offscreen target, the pixel-space 2D pipeline, and present/readback. cheatah-plot is its **first real
-consumer**, and this render seam is precisely the surface it must expose — which is why we pinned the
-plotting API down first. Build order:
-
-1. lock this `import plot` model — pure cheatah on `ndarray`/`linalg`/`statistics`, fully testable now;
-2. grow the easy `gpu` layer in cheatah-gpu **to this seam**, composing `gpu.vulkan` / `gpu.metal`;
-3. fill in `plot.renderer` / `plot.window` against it.
-
-## What we build first (the `import plot` mechanism)
-
-1. `plot.series` — the `Series` struct + `line`/`scatter`/`bar`/`errorbar`/`hist` constructors (pure).
-2. `plot.figure` — `Figure`/`Subplot`, the fluent builder methods, and the `Fig` spec form; layout math on
-   `plot.scale`. `.render()`/`.show()`/`.save()` are present but call into the roadmap renderer (a stub
-   that errors clearly until `plot.renderer` lands on the easy `gpu` layer).
-3. `plot` umbrella — re-export `figure()` + top-level `line/scatter/hist/...` conveniences so
-   `import plot` gives the whole surface.
-
-All three are `.purr`, gated by the existing QA machinery (systests + C++ coverage + docs), so the API
-model is locked and tested *before* any pixels exist — then the renderer is filled in against the easy
-`gpu` layer we design from the seam above.
+1. the `import plot` model — pure cheatah on `ndarray`/`linalg`/`statistics`, fully tested; ✔
+2. `plot.renderer`'s CPU core (reduce, binning, reference raster, PNG) — value ships headless;
+3. the GPU lanes (Vulkan + Metal contexts, the Slang kernels, two-lane goldens), then
+   `plot.window`.

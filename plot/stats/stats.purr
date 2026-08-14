@@ -1,0 +1,120 @@
+# plot.stats — the numbers plotting needs shaped into plot-ready arrays: histogram binning, the
+# least-squares fit line, and error magnitudes.
+#
+# `import plot.stats as stats`.
+#
+# Honest REUSE of the stdlib, per the house rule: `linalg.lstsq` does the fitting,
+# `statistics` measures the spreads, and `plot.scale` supplies the widened data range — this
+# module only builds bins and evaluates the fitted line. Pure host math, no device.
+
+import math
+import ndarray
+import linalg
+import statistics
+import plot.scale as scale
+
+# A binned histogram: everything a bar mark needs to draw it.
+struct Hist {
+    edges   : ndarray<float>   # the bins+1 ascending bin edges.
+    centers : ndarray<float>   # the bins bin centers (the bar x positions).
+    counts  : ndarray<float>   # the per-bin counts (the bar heights; float, plot-ready).
+}
+
+# Uniform-bin histogram of @p data over its widened range (plot.scale.data_range, so flat or
+# empty data still bins sanely). NaN values are skipped; values at or beyond the top edge land
+# in the last bin (the conventional right-inclusive tail).
+#
+# @param data the samples.
+# @param bins the bin count (clamped up to at least 1).
+# @return the Hist with edges, centers, and counts.
+# @complexity O(n + bins).
+# @alloc the three returned arrays.
+# @systest systests/test_stats.purr
+fn histogram(data : ndarray<float>, bins : int) -> Hist {
+    let b = bins
+    if b < 1 {
+        b = 1
+    }
+    let r = scale.data_range(data)
+    if r.lo != r.lo {   # a NaN-led series gives data_range a NaN range; bin over [0, 1] instead
+        r = scale.Range({.lo = 0.0, .hi = 1.0})
+    }
+    let step = (r.hi - r.lo) / float(b)
+    let edges = ndarray.zeros([b + 1])
+    for i in range(b + 1) {
+        edges[i] = r.lo + float(i) * step
+    }
+    let centers = ndarray.zeros([b])
+    for i in range(b) {
+        centers[i] = r.lo + (float(i) + 0.5) * step
+    }
+    let counts = ndarray.zeros([b])
+    let n = ndarray.size_of(data)
+    for i in range(n) {
+        let v = data[i]
+        if v == v {   # NaN-skip: NaN never equals itself
+            # r contains every finite sample by construction, so k >= 0 always; only the top
+            # edge needs folding into the last bin (right-inclusive tail). Values outside a
+            # NaN-fallback [0, 1] range clamp the same way.
+            let k = int(math.floor((v - r.lo) / step))
+            if k < 0 {
+                k = 0
+            }
+            if k >= b {
+                k = b - 1
+            }
+            counts[k] = counts[k] + 1.0
+        }
+    }
+    return Hist({.edges = edges, .centers = centers, .counts = counts})
+}
+
+# The least-squares LINE through (x, y), evaluated at each x — pass it straight to a line mark
+# to overlay the trend (`figure.line(x, stats.fit(x, y))`). The solve is `linalg.lstsq` on the
+# [x, 1] design matrix; this function only assembles operands and evaluates the result.
+#
+# @param x the x positions.
+# @param y the y values (same length).
+# @return the fitted line's y at each @p x (fewer than 2 points: @p y unchanged — no line to fit).
+# @complexity O(n) assembly + the lstsq solve.
+# @alloc the design/rhs operands and the returned array.
+# @systest systests/test_stats.purr
+fn fit(x : ndarray<float>, y : ndarray<float>) -> ndarray<float> {
+    let n = ndarray.size_of(x)
+    if n < 2 {
+        return y
+    }
+    let flat = ndarray.zeros([2 * n])
+    for i in range(n) {
+        flat[2 * i] = x[i]
+        flat[2 * i + 1] = 1.0
+    }
+    let design = ndarray.reshape(flat, [n, 2])
+    let rhs = ndarray.reshape(y, [n, 1])
+    let coef = ndarray.reshape(linalg.lstsq(design, rhs), [2])
+    let out = ndarray.zeros([n])
+    for i in range(n) {
+        out[i] = coef[0] * x[i] + coef[1]
+    }
+    return out
+}
+
+# The standard error of the mean — the honest default magnitude for symmetric error bars
+# (`statistics.stdev` under the hood; this function only supplies the √n).
+#
+# @param data the samples.
+# @return stdev(@p data) / √n (0 when fewer than 2 samples — no spread to estimate).
+# @complexity O(n).
+# @alloc one transient list copy (statistics consumes lists).
+# @systest systests/test_stats.purr
+fn sem(data : ndarray<float>) -> float {
+    let n = ndarray.size_of(data)
+    if n < 2 {
+        return 0.0
+    }
+    let xs : list<float> = []
+    for i in range(n) {
+        xs.append(data[i])
+    }
+    return statistics.stdev(xs) / math.sqrt(float(n))
+}

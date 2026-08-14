@@ -1,0 +1,423 @@
+# plot.figure — the figure model: subplots, axes, and the fluent building API.
+#
+# `import plot.figure as figure`.
+#
+# A Figure is plain data — a grid of Subplots, each holding axes and a series list — built by
+# free functions that RETURN A MODIFIED COPY (cheatah values are const; the fluent style is
+# `let f = figure.line(figure.new_figure(), x, y)` or a pipeline of rebindings). The renderer
+# consumes the finished value; nothing here touches a device. Axis limits are `math.nan` until
+# set — NaN means "auto: compute from the data at render time".
+
+import math
+import ndarray
+import plot.color as color
+import plot.series as series
+import plot.stats as stats
+# Named type imports: `list<series.Series>` does not survive codegen in field/local types —
+# the bare type names do (the named-import rule for list<T> of a cross-module type).
+import Series from plot.series
+import Color from plot.color
+
+# An axis transform choice ("linear" or "log") — a tiny struct instead of an enum, per the
+# house style; make one with `linear()` / `log_scale()`.
+struct Scale {
+    kind : str   # "linear" | "log".
+}
+
+# The linear axis transform (the default).
+#
+# @return the linear Scale.
+# @complexity O(1).
+# @alloc the Scale.
+# @systest systests/test_figure.purr
+fn linear() -> Scale {
+    return Scale({.kind = "linear"})
+}
+
+# The log10 axis transform (positive data; ticks land on decades via plot.scale.log_ticks).
+#
+# @return the log Scale.
+# @complexity O(1).
+# @alloc the Scale.
+# @systest systests/test_figure.purr
+fn log_scale() -> Scale {
+    return Scale({.kind = "log"})
+}
+
+# One axis: label, transform, limits, and a target tick count. NaN limits mean "auto from data".
+struct Axis {
+    label : str      # the axis label ("" = none).
+    scale : Scale    # the transform: linear (default) or log.
+    lo    : float    # the low limit; math.nan = auto.
+    hi    : float    # the high limit; math.nan = auto.
+    ticks : int      # the target tick count for the locator.
+}
+
+# One cell of the figure grid: a title, two axes, the series drawn in it, and a legend flag.
+struct Subplot {
+    title  : str                   # the subplot title ("" = none).
+    x      : Axis                  # the x axis.
+    y      : Axis                  # the y axis.
+    series : list<Series>          # the marks, in draw order.
+    legend : bool                  # whether labeled series get a legend box.
+}
+
+# The whole figure: a rows×cols grid of subplots, pixel size, the categorical palette, and the
+# index fluent calls currently target.
+struct Figure {
+    subplots : list<Subplot>        # rows*cols cells, row-major.
+    rows     : int                  # grid rows (>= 1).
+    cols     : int                  # grid columns (>= 1).
+    cur      : int                  # the subplot index fluent calls target.
+    width    : int                  # figure width in pixels.
+    height   : int                  # figure height in pixels.
+    palette  : list<Color>          # the categorical colours auto series cycle through.
+}
+
+# A fresh default axis: no label, linear, auto limits, 6 ticks — the one place axis defaults live.
+#
+# @return the default Axis.
+# @complexity O(1).
+# @alloc the Axis.
+# @systest systests/test_figure.purr
+fn default_axis() -> Axis {
+    return Axis({.label = "", .scale = linear(), .lo = math.nan, .hi = math.nan, .ticks = 6})
+}
+
+# A rows×cols grid figure with empty subplots, 900×600 pixels, the tab10 palette, targeting
+# cell 0 — `new_figure()` is this with a 1×1 grid.
+#
+# @param rows the grid rows (clamped up to at least 1).
+# @param cols the grid columns (clamped up to at least 1).
+# @return the empty grid Figure.
+# @complexity O(rows·cols).
+# @alloc the Figure and its subplots.
+# @systest systests/test_figure.purr
+fn grid(rows : int, cols : int) -> Figure {
+    let r = rows
+    if r < 1 {
+        r = 1
+    }
+    let c = cols
+    if c < 1 {
+        c = 1
+    }
+    let subs : list<Subplot> = []
+    for i in range(r * c) {
+        let empty : list<Series> = []
+        subs.append(Subplot({.title = "", .x = default_axis(), .y = default_axis(),
+                             .series = empty, .legend = false}))
+    }
+    return Figure({.subplots = subs, .rows = r, .cols = c, .cur = 0,
+                   .width = 900, .height = 600, .palette = color.tab10()})
+}
+
+# A fresh single-subplot figure — the usual starting point.
+#
+# @return the empty 1×1 Figure.
+# @complexity O(1).
+# @alloc the Figure.
+# @systest systests/test_figure.purr
+fn new_figure() -> Figure {
+    return grid(1, 1)
+}
+
+# Point fluent calls at grid cell (@p r, @p c) — out-of-range coordinates clamp to the grid.
+#
+# @param f the figure.
+# @param r the target row (0-based).
+# @param c the target column (0-based).
+# @return a copy of @p f targeting that cell.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn subplot(f : Figure, r : int, c : int) -> Figure {
+    let g = f
+    let rr = r
+    if rr < 0 { rr = 0 }
+    if rr >= g.rows { rr = g.rows - 1 }
+    let cc = c
+    if cc < 0 { cc = 0 }
+    if cc >= g.cols { cc = g.cols - 1 }
+    g.cur = rr * g.cols + cc
+    return g
+}
+
+# Append a pre-built series to the targeted subplot — the bridge between the constructor style
+# (`series.line(x, y)`) and the fluent style.
+#
+# @param f the figure.
+# @param s the series to append.
+# @return a copy of @p f with @p s appended to the current subplot.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn add(f : Figure, s : Series) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.series.append(s)
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Fluent line mark: append `series.line(x, y)` to the targeted subplot.
+#
+# @param f the figure.
+# @param x the x positions.
+# @param y the y values (same length).
+# @return a copy of @p f with the line appended.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn line(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
+    return add(f, series.line(x, y))
+}
+
+# Fluent scatter mark: append `series.scatter(x, y)` to the targeted subplot.
+#
+# @param f the figure.
+# @param x the x positions.
+# @param y the y values (same length).
+# @return a copy of @p f with the scatter appended.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn scatter(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
+    return add(f, series.scatter(x, y))
+}
+
+# Fluent bar mark: append `series.bar(x, y)` to the targeted subplot.
+#
+# @param f the figure.
+# @param x the bar positions.
+# @param y the bar heights (same length).
+# @return a copy of @p f with the bars appended.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn bar(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
+    return add(f, series.bar(x, y))
+}
+
+# Fluent area mark: append `series.area(x, y)` to the targeted subplot.
+#
+# @param f the figure.
+# @param x the x positions.
+# @param y the top edge values (same length).
+# @return a copy of @p f with the area appended.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn area(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
+    return add(f, series.area(x, y))
+}
+
+# Fluent step mark: append `series.step(x, y)` to the targeted subplot.
+#
+# @param f the figure.
+# @param x the x positions.
+# @param y the y values (same length).
+# @return a copy of @p f with the step line appended.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn step(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
+    return add(f, series.step(x, y))
+}
+
+# Fluent error bars: append `series.errorbar(x, y, ylo, yhi)` to the targeted subplot.
+#
+# @param f the figure.
+# @param x the x positions.
+# @param y the central values.
+# @param ylo the lower whisker ends (absolute).
+# @param yhi the upper whisker ends (absolute).
+# @return a copy of @p f with the error bars appended.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn errorbar(f : Figure, x : ndarray<float>, y : ndarray<float>, ylo : ndarray<float>,
+            yhi : ndarray<float>) -> Figure {
+    return add(f, series.errorbar(x, y, ylo, yhi))
+}
+
+# Fluent heatmap: append `series.heatmap(z)` to the targeted subplot.
+#
+# @param f the figure.
+# @param z the row-major 2-D value grid.
+# @return a copy of @p f with the heatmap appended.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn heatmap(f : Figure, z : ndarray<float>) -> Figure {
+    return add(f, series.heatmap(z))
+}
+
+# Fluent histogram: bin @p data with `plot.stats.histogram` and append the bars (touching, per
+# histogram convention).
+#
+# @param f the figure.
+# @param data the samples.
+# @param bins the bin count (clamped up to at least 1).
+# @return a copy of @p f with the histogram bars appended.
+# @complexity O(n + bins + figure).
+# @alloc the returned copy plus the histogram arrays.
+# @systest systests/test_figure.purr
+fn hist(f : Figure, data : ndarray<float>, bins : int) -> Figure {
+    let h = stats.histogram(data, bins)
+    let s = series.bar(h.centers, h.counts)
+    s.width = 1.0
+    return add(f, s)
+}
+
+# Set the targeted subplot's title.
+#
+# @param f the figure.
+# @param t the title text.
+# @return a copy of @p f with the title set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn title(f : Figure, t : str) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.title = t
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Set the targeted subplot's x-axis label.
+#
+# @param f the figure.
+# @param s the label text.
+# @return a copy of @p f with the label set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn xlabel(f : Figure, s : str) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.x.label = s
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Set the targeted subplot's y-axis label.
+#
+# @param f the figure.
+# @param s the label text.
+# @return a copy of @p f with the label set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn ylabel(f : Figure, s : str) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.y.label = s
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Fix the targeted subplot's x limits (overriding auto).
+#
+# @param f the figure.
+# @param lo the low limit.
+# @param hi the high limit.
+# @return a copy of @p f with the limits set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn xlim(f : Figure, lo : float, hi : float) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.x.lo = lo
+    sp.x.hi = hi
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Fix the targeted subplot's y limits (overriding auto).
+#
+# @param f the figure.
+# @param lo the low limit.
+# @param hi the high limit.
+# @return a copy of @p f with the limits set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn ylim(f : Figure, lo : float, hi : float) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.y.lo = lo
+    sp.y.hi = hi
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Set the targeted subplot's x-axis transform.
+#
+# @param f the figure.
+# @param s the Scale (linear() or log_scale()).
+# @return a copy of @p f with the transform set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn xscale(f : Figure, s : Scale) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.x.scale = s
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Set the targeted subplot's y-axis transform.
+#
+# @param f the figure.
+# @param s the Scale (linear() or log_scale()).
+# @return a copy of @p f with the transform set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn yscale(f : Figure, s : Scale) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.y.scale = s
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Turn the targeted subplot's legend on or off (labeled series get entries when on).
+#
+# @param f the figure.
+# @param on true to draw the legend box.
+# @return a copy of @p f with the flag set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn legend(f : Figure, on : bool) -> Figure {
+    let g = f
+    let sp = g.subplots[g.cur]
+    sp.legend = on
+    g.subplots[g.cur] = sp
+    return g
+}
+
+# Set the figure's pixel size.
+#
+# @param f the figure.
+# @param w the width in pixels (clamped up to at least 64).
+# @param h the height in pixels (clamped up to at least 64).
+# @return a copy of @p f with the size set.
+# @complexity O(figure).
+# @alloc the returned copy.
+# @systest systests/test_figure.purr
+fn size(f : Figure, w : int, h : int) -> Figure {
+    let g = f
+    let ww = w
+    if ww < 64 { ww = 64 }
+    let hh = h
+    if hh < 64 { hh = 64 }
+    g.width = ww
+    g.height = hh
+    return g
+}

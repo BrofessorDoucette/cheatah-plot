@@ -54,7 +54,7 @@ inline std::ostream& operator<<(std::ostream& os_, const Range& v_) {
  * @alloc the Range.
  * @systest systests/test_scale.purr
  */
-auto data_range(::cheatah::ndarray::basic_ndarray<double>& values) {
+inline Range data_range(::cheatah::ndarray::basic_ndarray<double>& values) {
     auto n = ndarray::size_of(values);
     if ((n == 0LL)) {
         return Range{.lo = static_cast<double>(0.0), .hi = static_cast<double>(1.0)};
@@ -88,7 +88,7 @@ auto data_range(::cheatah::ndarray::basic_ndarray<double>& values) {
  * @alloc none.
  * @systest systests/test_scale.purr
  */
-auto nice_step(builtins::Value auto&& span, builtins::Value auto&& target) {
+inline double nice_step(builtins::Value auto&& span, builtins::Value auto&& target) {
     auto raw = builtins::truediv(span, builtins::to_float(target));
     auto magnitude = math::pow(10.0, math::floor(math::log10(raw)));
     auto residual = builtins::truediv(raw, magnitude);
@@ -118,7 +118,7 @@ auto nice_step(builtins::Value auto&& span, builtins::Value auto&& target) {
  * @alloc the returned tick array.
  * @systest systests/test_scale.purr
  */
-auto ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
+inline ::cheatah::ndarray::basic_ndarray<double> ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
     auto span = (r.hi - r.lo);
     if ((span <= 0.0)) {
         auto single = ndarray::zeros(std::vector{1LL});
@@ -147,6 +147,98 @@ auto ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
 
 
 /**
+ * The ascending tick positions for a LOG axis across @p r — decade marks (powers of ten), strided
+ * when the range spans more decades than @p target, and subdivided with the 1-2-5 mantissas when it
+ * spans fewer than two so short log axes still read well. Sub-decade ranges that trap no 1-2-5
+ * mantissa fall back to linear ticks (the honest choice — log labelling adds nothing there).
+ *
+ * @param r the axis data range; a log axis holds positive data, so r.lo must be > 0 (a
+ *          non-positive or degenerate range falls back exactly like `ticks`).
+ * @param target the desired tick count (approximate; must be >= 1).
+ * @return the ascending tick positions within [r.lo, r.hi] (at least one).
+ * @complexity O(ticks).
+ * @alloc the returned tick array.
+ * @systest systests/test_scale.purr
+ */
+inline ::cheatah::ndarray::basic_ndarray<double> log_ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
+    if ((r.lo <= 0.0)) {
+        return ticks(r, target);
+    }
+    auto span = (r.hi - r.lo);
+    if ((span <= 0.0)) {
+        return ticks(r, target);
+    }
+    auto d_lo = builtins::to_int(math::ceil((math::log10(r.lo) - 0.0001)));
+    auto d_hi = builtins::to_int(math::floor((math::log10(r.hi) + 0.0001)));
+    auto decades = ((d_hi - d_lo) + 1LL);
+    if ((decades >= 2LL)) {
+        auto stride = 1LL;
+        if ((decades > target)) {
+            stride = builtins::floordiv(((decades + target) - 1LL), target);
+        }
+        auto count = builtins::floordiv(((decades + stride) - 1LL), stride);
+        auto out = ndarray::zeros(std::vector{count});
+        auto k = 0LL;
+        while ((k < count)) {
+            out[k] = math::pow(10.0, builtins::to_float((d_lo + (k * stride))));
+            k += 1LL;
+        }
+        return out;
+    }
+    auto base_lo = builtins::to_int(math::floor((math::log10(r.lo) + 0.0001)));
+    auto base_hi = builtins::to_int(math::floor((math::log10(r.hi) + 0.0001)));
+    auto guard_lo = (r.lo * 0.9999);
+    auto guard_hi = (r.hi * 1.0001);
+    auto count = 0LL;
+    for (long long d = base_lo; d < (base_hi + 1LL); ++d) {
+        auto decade = math::pow(10.0, builtins::to_float(d));
+        if ((decade >= guard_lo)) {
+            if ((decade <= guard_hi)) {
+                count += 1LL;
+            }
+        }
+        if (((2.0 * decade) >= guard_lo)) {
+            if (((2.0 * decade) <= guard_hi)) {
+                count += 1LL;
+            }
+        }
+        if (((5.0 * decade) >= guard_lo)) {
+            if (((5.0 * decade) <= guard_hi)) {
+                count += 1LL;
+            }
+        }
+    }
+    if ((count == 0LL)) {
+        return ticks(r, target);
+    }
+    auto out = ndarray::zeros(std::vector{count});
+    auto k = 0LL;
+    for (long long d = base_lo; d < (base_hi + 1LL); ++d) {
+        auto decade = math::pow(10.0, builtins::to_float(d));
+        if ((decade >= guard_lo)) {
+            if ((decade <= guard_hi)) {
+                out[k] = decade;
+                k += 1LL;
+            }
+        }
+        if (((2.0 * decade) >= guard_lo)) {
+            if (((2.0 * decade) <= guard_hi)) {
+                out[k] = (2.0 * decade);
+                k += 1LL;
+            }
+        }
+        if (((5.0 * decade) >= guard_lo)) {
+            if (((5.0 * decade) <= guard_hi)) {
+                out[k] = (5.0 * decade);
+                k += 1LL;
+            }
+        }
+    }
+    return out;
+}
+
+
+/**
  * Map a data value to a pixel coordinate: linearly from the data range @p r onto the pixel span
  * [@p px_lo, @p px_hi]. (For a screen Y axis, pass px_lo/px_hi flipped so larger data is higher up.)
  *
@@ -159,12 +251,46 @@ auto ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
  * @alloc none.
  * @systest systests/test_scale.purr
  */
-auto to_pixel(builtins::Value auto&& value, builtins::Value auto&& r, builtins::Value auto&& px_lo, builtins::Value auto&& px_hi) {
+inline double to_pixel(builtins::Value auto&& value, builtins::Value auto&& r, builtins::Value auto&& px_lo, builtins::Value auto&& px_hi) {
     auto span = (r.hi - r.lo);
     if ((span <= 0.0)) {
         return px_lo;
     }
     return (px_lo + (builtins::truediv((value - r.lo), span) * (px_hi - px_lo)));
+}
+
+
+/**
+ * Map a data value to a pixel coordinate on a LOG axis: linear in log10 space across @p r, onto the
+ * pixel span [@p px_lo, @p px_hi]. Non-positive ranges or values fall back to the linear map — a log
+ * axis holds positive data, and the figure layer keeps it that way; the fallback just refuses to NaN.
+ *
+ * @param value the data value to place (> 0 on a real log axis).
+ * @param r the axis data range (both ends > 0 on a real log axis).
+ * @param px_lo the pixel coordinate of r.lo.
+ * @param px_hi the pixel coordinate of r.hi.
+ * @return the pixel coordinate of @p value (not clamped to the span).
+ * @complexity O(1).
+ * @alloc none.
+ * @systest systests/test_scale.purr
+ */
+inline double to_pixel_log(builtins::Value auto&& value, builtins::Value auto&& r, builtins::Value auto&& px_lo, builtins::Value auto&& px_hi) {
+    if ((r.lo <= 0.0)) {
+        return to_pixel(value, r, px_lo, px_hi);
+    }
+    if ((r.hi <= 0.0)) {
+        return to_pixel(value, r, px_lo, px_hi);
+    }
+    if ((value <= 0.0)) {
+        return to_pixel(value, r, px_lo, px_hi);
+    }
+    auto llo = math::log10(r.lo);
+    auto lhi = math::log10(r.hi);
+    auto span = (lhi - llo);
+    if ((span <= 0.0)) {
+        return px_lo;
+    }
+    return (px_lo + (builtins::truediv((math::log10(value) - llo), span) * (px_hi - px_lo)));
 }
 
 

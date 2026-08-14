@@ -102,6 +102,91 @@ fn ticks(r : Range, target : int) -> ndarray<float> {
     return out
 }
 
+# The ascending tick positions for a LOG axis across @p r — decade marks (powers of ten), strided
+# when the range spans more decades than @p target, and subdivided with the 1-2-5 mantissas when it
+# spans fewer than two so short log axes still read well. Sub-decade ranges that trap no 1-2-5
+# mantissa fall back to linear ticks (the honest choice — log labelling adds nothing there).
+#
+# @param r the axis data range; a log axis holds positive data, so r.lo must be > 0 (a
+#          non-positive or degenerate range falls back exactly like `ticks`).
+# @param target the desired tick count (approximate; must be >= 1).
+# @return the ascending tick positions within [r.lo, r.hi] (at least one).
+# @complexity O(ticks).
+# @alloc the returned tick array.
+# @systest systests/test_scale.purr
+fn log_ticks(r : Range, target : int) -> ndarray<float> {
+    if r.lo <= 0.0 {
+        return ticks(r, target)
+    }
+    let span = r.hi - r.lo
+    if span <= 0.0 {
+        return ticks(r, target)
+    }
+    let d_lo = int(math.ceil(math.log10(r.lo) - 0.0001))
+    let d_hi = int(math.floor(math.log10(r.hi) + 0.0001))
+    let decades = d_hi - d_lo + 1
+    if decades >= 2 {
+        # Decade marks, strided so about target survive on very wide ranges.
+        let stride = 1
+        if decades > target {
+            stride = (decades + target - 1) // target
+        }
+        let count = (decades + stride - 1) // stride
+        let out = ndarray.zeros([count])
+        let k = 0
+        while k < count {
+            out[k] = math.pow(10.0, float(d_lo + k * stride))
+            k = k + 1
+        }
+        return out
+    }
+    # Fewer than two decade marks inside the range: subdivide with the 1-2-5 mantissas.
+    let base_lo = int(math.floor(math.log10(r.lo) + 0.0001))
+    let base_hi = int(math.floor(math.log10(r.hi) + 0.0001))
+    let guard_lo = r.lo * 0.9999
+    let guard_hi = r.hi * 1.0001
+    let count = 0
+    for d in range(base_lo, base_hi + 1) {
+        let decade = math.pow(10.0, float(d))
+        if decade >= guard_lo {
+            if decade <= guard_hi { count = count + 1 }
+        }
+        if 2.0 * decade >= guard_lo {
+            if 2.0 * decade <= guard_hi { count = count + 1 }
+        }
+        if 5.0 * decade >= guard_lo {
+            if 5.0 * decade <= guard_hi { count = count + 1 }
+        }
+    }
+    if count == 0 {
+        return ticks(r, target)
+    }
+    let out = ndarray.zeros([count])
+    let k = 0
+    for d in range(base_lo, base_hi + 1) {
+        let decade = math.pow(10.0, float(d))
+        if decade >= guard_lo {
+            if decade <= guard_hi {
+                out[k] = decade
+                k = k + 1
+            }
+        }
+        if 2.0 * decade >= guard_lo {
+            if 2.0 * decade <= guard_hi {
+                out[k] = 2.0 * decade
+                k = k + 1
+            }
+        }
+        if 5.0 * decade >= guard_lo {
+            if 5.0 * decade <= guard_hi {
+                out[k] = 5.0 * decade
+                k = k + 1
+            }
+        }
+    }
+    return out
+}
+
 # Map a data value to a pixel coordinate: linearly from the data range @p r onto the pixel span
 # [@p px_lo, @p px_hi]. (For a screen Y axis, pass px_lo/px_hi flipped so larger data is higher up.)
 #
@@ -119,4 +204,35 @@ fn to_pixel(value : float, r : Range, px_lo : float, px_hi : float) -> float {
         return px_lo
     }
     return px_lo + (value - r.lo) / span * (px_hi - px_lo)
+}
+
+# Map a data value to a pixel coordinate on a LOG axis: linear in log10 space across @p r, onto the
+# pixel span [@p px_lo, @p px_hi]. Non-positive ranges or values fall back to the linear map — a log
+# axis holds positive data, and the figure layer keeps it that way; the fallback just refuses to NaN.
+#
+# @param value the data value to place (> 0 on a real log axis).
+# @param r the axis data range (both ends > 0 on a real log axis).
+# @param px_lo the pixel coordinate of r.lo.
+# @param px_hi the pixel coordinate of r.hi.
+# @return the pixel coordinate of @p value (not clamped to the span).
+# @complexity O(1).
+# @alloc none.
+# @systest systests/test_scale.purr
+fn to_pixel_log(value : float, r : Range, px_lo : float, px_hi : float) -> float {
+    if r.lo <= 0.0 {
+        return to_pixel(value, r, px_lo, px_hi)
+    }
+    if r.hi <= 0.0 {
+        return to_pixel(value, r, px_lo, px_hi)
+    }
+    if value <= 0.0 {
+        return to_pixel(value, r, px_lo, px_hi)
+    }
+    let llo = math.log10(r.lo)
+    let lhi = math.log10(r.hi)
+    let span = lhi - llo
+    if span <= 0.0 {
+        return px_lo
+    }
+    return px_lo + (math.log10(value) - llo) / span * (px_hi - px_lo)
 }

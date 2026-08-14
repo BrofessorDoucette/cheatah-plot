@@ -159,5 +159,9 @@ fi
 bold "Running cppcheck (performance + security)…"
 bash scripts/cppcheck.sh || fail "cppcheck (performance/security findings)"
 
+# 10. Private-reference scan (hard gate): this repo is public — no sibling-project names --------
+bold "Scanning for private-project references…"
+bash scripts/check_no_private_refs.sh || fail "a private-project reference is in the tree"
+
 bold "QA gate PASSED — push may proceed."
 exit 0

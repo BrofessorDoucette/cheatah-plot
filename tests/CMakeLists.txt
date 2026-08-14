@@ -34,7 +34,7 @@ endif()
 # The stdlib modules whose compiled symbols plot.scale calls. `math` builds on `builtins`, so it PUBLIC-
 # links it (propagating both the include dir and the correct static-link order). Guarded so a future
 # consumer target in this repo can reuse them without redefinition.
-foreach(_mod builtins math)
+foreach(_mod builtins math statistics)
     if(NOT TARGET cheatah_${_mod})
         add_library(cheatah_${_mod} STATIC ${_cheatah_stdlib}/${_mod}/${_mod}.cpp)
         target_include_directories(cheatah_${_mod} PUBLIC ${_cheatah_stdlib}/${_mod})
@@ -43,21 +43,44 @@ foreach(_mod builtins math)
     endif()
 endforeach()
 target_link_libraries(cheatah_math PUBLIC cheatah_builtins)
+target_link_libraries(cheatah_statistics PUBLIC cheatah_math)
+
+# linalg's sources are routines.cpp + simd.cpp (no single-file convention), and it reads the
+# header-only ndarray surface — plot.stats calls its lstsq for the fit line.
+if(NOT TARGET cheatah_linalg)
+    add_library(cheatah_linalg STATIC
+        ${_cheatah_stdlib}/linalg/routines.cpp
+        ${_cheatah_stdlib}/linalg/simd.cpp
+    )
+    target_include_directories(cheatah_linalg PUBLIC
+        ${_cheatah_stdlib}/linalg
+        ${_cheatah_stdlib}/ndarray
+    )
+    target_compile_features(cheatah_linalg PUBLIC cxx_std_20)
+    set_target_properties(cheatah_linalg PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(cheatah_linalg PUBLIC cheatah_math)
+endif()
 
 add_executable(cheatah_plot_tests
     scale_test.cpp
+    color_test.cpp
+    series_test.cpp
+    stats_test.cpp
+    figure_test.cpp
 )
 target_include_directories(cheatah_plot_tests PRIVATE ${_cheatah_stdlib}/ndarray)  # header-only ndarray surface
 target_link_libraries(cheatah_plot_tests PRIVATE
     cheatah::plot
     cheatah_math          # brings cheatah_builtins transitively
+    cheatah_statistics
+    cheatah_linalg
     GTest::gtest_main
 )
 
 # Optional ASan + UBSan (the `asan` preset turns this on). Sanitize the stdlib we compiled too, so the
 # whole binary is instrumented consistently. Valgrind runs the plain debug build.
 if(CHEATAH_PLOT_SANITIZE)
-    foreach(_t cheatah_plot_tests cheatah_builtins cheatah_math)
+    foreach(_t cheatah_plot_tests cheatah_builtins cheatah_math cheatah_statistics cheatah_linalg)
         target_compile_options(${_t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     endforeach()
     target_link_options(cheatah_plot_tests PRIVATE -fsanitize=address,undefined)

@@ -1,0 +1,48 @@
+# systests/test_series — plot.series: mark constructors and their style defaults end to end.
+
+import io
+import ndarray
+import plot.color as color
+import plot.series as series
+import check
+
+io.print("== plot.series: mark constructors ==")
+let f = 0
+
+let x = ndarray.array([0.0, 1.0, 2.0])
+let y = ndarray.array([1.0, 3.0, 5.0])
+
+# The simple constructors set kinds and the house defaults.
+let ln = series.line(x, y)
+f += check.is_true("line kind", ln.kind == "line")
+f += check.is_true("line auto colour", color.is_auto(ln.color))
+f += check.is_true("line width", ln.width == 1.5)
+
+let sc = series.scatter(x, y)
+f += check.is_true("scatter marker", sc.marker == "circle")
+
+let br = series.bar(x, y)
+f += check.is_true("bar slot fraction", br.width == 0.8)
+f += check.is_true("bar filled", br.fill)
+
+# The styled arity carries the full style set.
+let dash = series.dash_pattern(6.0, 3.0)
+let ink = color.named("crimson")
+let styled = series.line_styled(x, y, ink, 2.5, dash, "trend")
+f += check.is_true("styled width", styled.width == 2.5)
+f += check.is_true("styled label", styled.label == "trend")
+f += check.eq_int("styled dash", ndarray.size_of(styled.dash), 2)
+
+# Error bars carry both bounds; heatmap carries the grid.
+let lo = ndarray.array([0.5, 2.5, 4.5])
+let hi = ndarray.array([1.5, 3.5, 5.5])
+let eb = series.errorbar(x, y, lo, hi)
+f += check.is_true("errorbar kind", eb.kind == "errorbar")
+f += check.eq_int("errorbar bounds", ndarray.size_of(eb.ylo), 3)
+
+let z = ndarray.reshape(ndarray.array([1.0, 2.0, 3.0, 4.0]), [2, 2])
+let hm = series.heatmap(z)
+f += check.is_true("heatmap kind", hm.kind == "heatmap")
+f += check.eq_int("heatmap cells", ndarray.size_of(hm.z), 4)
+
+check.result(f)
