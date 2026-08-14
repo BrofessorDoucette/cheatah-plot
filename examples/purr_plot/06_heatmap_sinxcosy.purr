@@ -1,0 +1,18 @@
+# 06_heatmap_sinxcosy — a 2-D field as a viridis heatmap.
+import math
+import ndarray
+import plot
+import plot.figure as figure
+
+let rows = 40
+let cols = 60
+let flat = ndarray.zeros([rows * cols])
+for r in range(rows) {
+    for c in range(cols) {
+        flat[r * cols + c] = math.sin(float(c) * 0.2) * math.cos(float(r) * 0.2)
+    }
+}
+let z = ndarray.reshape(flat, [rows, cols])
+let fig = figure.heatmap(figure.new_figure(), z)
+fig = figure.title(fig, "sin(x)cos(y)")
+plot.save(fig, "out/06_heatmap_sinxcosy.png")

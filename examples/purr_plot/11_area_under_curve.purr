@@ -1,0 +1,21 @@
+# 11_area_under_curve — a translucent filled area under a curve, line on top.
+import math
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+import plot.color as color
+
+let n = 120
+let x = ndarray.zeros([n])
+let y = ndarray.zeros([n])
+for i in range(n) {
+    x[i] = float(i) * 0.05
+    y[i] = math.exp(0.0 - x[i]) * math.sin(3.0 * x[i]) + 1.2
+}
+let fill = series.area(x, y)
+fill.color = color.rgba(0.122, 0.467, 0.706, 0.35)
+let fig = figure.add(figure.new_figure(), fill)
+fig = figure.line(fig, x, y)
+fig = figure.title(fig, "damped oscillation")
+plot.save(fig, "out/11_area_under_curve.png")

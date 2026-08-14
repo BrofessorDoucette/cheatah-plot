@@ -1,0 +1,10 @@
+# 12_step_function — a step line (piecewise-constant signal).
+import ndarray
+import plot
+import plot.figure as figure
+
+let x = ndarray.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+let y = ndarray.array([1.0, 3.0, 2.0, 5.0, 4.0, 6.0, 5.0])
+let fig = figure.step(figure.new_figure(), x, y)
+fig = figure.title(fig, "step signal")
+plot.save(fig, "out/12_step_function.png")

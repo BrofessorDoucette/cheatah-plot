@@ -1,0 +1,22 @@
+# 13_signal_and_hist_1x2 — a noisy signal beside the histogram of its values.
+import math
+import random
+import ndarray
+import plot
+import plot.figure as figure
+
+random.seed(3)
+let n = 400
+let x = ndarray.zeros([n])
+let y = ndarray.zeros([n])
+for i in range(n) {
+    x[i] = float(i)
+    y[i] = math.sin(float(i) * 0.05) + random.uniform(-0.3, 0.3)
+}
+let fig = figure.grid(1, 2)
+fig = figure.line(figure.subplot(fig, 0, 0), x, y)
+fig = figure.title(fig, "signal")
+fig = figure.hist(figure.subplot(fig, 0, 1), y, 24)
+fig = figure.title(fig, "distribution")
+fig = figure.size(fig, 900, 360)
+plot.save(fig, "out/13_signal_and_hist_1x2.png")

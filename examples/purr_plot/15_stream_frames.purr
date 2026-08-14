@@ -1,0 +1,20 @@
+# 15_stream_frames — the streaming story, headless: render a moving sine as numbered frames
+# (encode + serve these over HTTP multipart and a plain <img> tag plays them live).
+import math
+import ndarray
+import plot
+import plot.figure as figure
+
+let n = 120
+for frame in range(8) {
+    let x = ndarray.zeros([n])
+    let y = ndarray.zeros([n])
+    for i in range(n) {
+        x[i] = float(i) * 2.0 * math.pi / float(n - 1)
+        y[i] = math.sin(x[i] + float(frame) * 0.6)
+    }
+    let fig = figure.line(figure.new_figure(), x, y)
+    fig = figure.ylim(fig, -1.2, 1.2)
+    fig = figure.size(fig, 400, 260)
+    plot.save(fig, "out/15_frame_" + str(frame) + ".png")
+}

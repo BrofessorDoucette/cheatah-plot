@@ -1,0 +1,12 @@
+# 10_error_bars_asymmetric — measurements with asymmetric uncertainty.
+import ndarray
+import plot
+import plot.figure as figure
+
+let x = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0])
+let y = ndarray.array([2.1, 3.4, 2.9, 4.2, 3.7])
+let lo = ndarray.array([1.7, 3.1, 2.4, 3.9, 3.1])
+let hi = ndarray.array([2.4, 3.9, 3.2, 4.8, 4.1])
+let fig = figure.errorbar(figure.new_figure(), x, y, lo, hi)
+fig = figure.title(fig, "asymmetric errors")
+plot.save(fig, "out/10_error_bars_asymmetric.png")

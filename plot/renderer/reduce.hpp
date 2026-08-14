@@ -32,9 +32,10 @@ inline constexpr std::uint32_t kWhite = 0xFFFFFFFFu;
 inline constexpr std::uint32_t kInk = 0xFF202020u;
 inline constexpr std::uint32_t kGrid = 0xFFE0E0E0u;
 
-/// Format a tick value the way an axis label reads best: %.6g, trimmed. @complexity O(1).
-/// @alloc the returned string.
+/// Format a tick value the way an axis label reads best: %.6g, with float-noise around zero
+/// snapped so no axis ever reads "-0". @complexity O(1). @alloc the returned string.
 inline std::string fmt_tick(double v) {
+    if (std::abs(v) < 1e-12) v = 0.0;
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%.6g", v);
     return std::string(buf);

@@ -1,0 +1,19 @@
+# 09_random_walk — a cumulative random walk as a line.
+import random
+import ndarray
+import plot
+import plot.figure as figure
+
+random.seed(42)
+let n = 500
+let x = ndarray.zeros([n])
+let y = ndarray.zeros([n])
+let acc = 0.0
+for i in range(n) {
+    x[i] = float(i)
+    acc = acc + random.uniform(-1.0, 1.0)
+    y[i] = acc
+}
+let fig = figure.line(figure.new_figure(), x, y)
+fig = figure.title(fig, "random walk")
+plot.save(fig, "out/09_random_walk.png")

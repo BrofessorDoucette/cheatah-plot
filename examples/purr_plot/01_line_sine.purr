@@ -1,0 +1,17 @@
+# 01_line_sine — the hello-world plot: one sine period as a line.
+import math
+import ndarray
+import plot
+import plot.figure as figure
+
+let n = 200
+let x = ndarray.zeros([n])
+let y = ndarray.zeros([n])
+for i in range(n) {
+    x[i] = float(i) * 2.0 * math.pi / float(n - 1)
+    y[i] = math.sin(x[i])
+}
+let fig = figure.line(figure.new_figure(), x, y)
+fig = figure.title(fig, "sin(x)")
+fig = figure.xlabel(fig, "x")
+plot.save(fig, "out/01_line_sine.png")

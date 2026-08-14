@@ -1,0 +1,11 @@
+# 04_bar_categories — a category bar chart.
+import ndarray
+import plot
+import plot.figure as figure
+
+let x = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0])
+let y = ndarray.array([23.0, 41.0, 17.0, 34.0, 28.0])
+let fig = figure.bar(figure.new_figure(), x, y)
+fig = figure.title(fig, "widgets per day")
+fig = figure.ylabel(fig, "count")
+plot.save(fig, "out/04_bar_categories.png")

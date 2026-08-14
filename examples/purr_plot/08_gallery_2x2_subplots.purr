@@ -1,0 +1,22 @@
+# 08_gallery_2x2_subplots — four mark kinds in one 2x2 grid.
+import math
+import ndarray
+import plot
+import plot.figure as figure
+
+let n = 40
+let x = ndarray.zeros([n])
+let y = ndarray.zeros([n])
+for i in range(n) {
+    x[i] = float(i) * 0.25
+    y[i] = math.sin(x[i]) + float(i) * 0.03
+}
+let bars_x = ndarray.array([1.0, 2.0, 3.0, 4.0])
+let bars_y = ndarray.array([3.0, 1.5, 4.0, 2.5])
+let fig = figure.grid(2, 2)
+fig = figure.line(figure.subplot(fig, 0, 0), x, y)
+fig = figure.scatter(figure.subplot(fig, 0, 1), x, y)
+fig = figure.bar(figure.subplot(fig, 1, 0), bars_x, bars_y)
+fig = figure.area(figure.subplot(fig, 1, 1), x, y)
+fig = figure.size(fig, 900, 640)
+plot.save(fig, "out/08_gallery_2x2_subplots.png")

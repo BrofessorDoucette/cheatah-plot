@@ -1,0 +1,27 @@
+# 03_sin_cos_multi_series — two labeled lines sharing axes, with a legend.
+import math
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+import plot.color as color
+
+let n = 160
+let x = ndarray.zeros([n])
+let ys = ndarray.zeros([n])
+let yc = ndarray.zeros([n])
+for i in range(n) {
+    x[i] = float(i) * 2.0 * math.pi / float(n - 1)
+    ys[i] = math.sin(x[i])
+    yc[i] = math.cos(x[i])
+}
+let solid = ndarray.zeros([0])
+let cs = color.named("royalblue")
+let a = series.line_styled(x, ys, cs, 1.8, solid, "sin")
+let cc = color.named("darkorange")
+let dashes = series.dash_pattern(6.0, 3.0)
+let b = series.line_styled(x, yc, cc, 1.8, dashes, "cos")
+let fig = figure.add(figure.new_figure(), a)
+fig = figure.add(fig, b)
+fig = figure.legend(fig, true)
+plot.save(fig, "out/03_sin_cos_multi_series.png")

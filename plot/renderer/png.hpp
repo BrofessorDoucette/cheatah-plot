@@ -40,6 +40,29 @@ struct Image {
 
 namespace detail {
 
+/// Unpack a raster framebuffer (one packed RGBA8 uint per pixel — the kernels' byte order,
+/// r | g<<8 | b<<16 | a<<24) into an @ref Image's byte planes. The one fb→Image conversion,
+/// shared by the CPU and GPU render paths so their outputs are byte-comparable.
+/// @param fb The packed framebuffer, width*height pixels (row-major).
+/// @param width The framebuffer width in pixels.
+/// @param height The framebuffer height in pixels.
+/// @return The image (rgba sized width*height*4; fb pixels beyond that are ignored).
+/// @complexity O(pixels). @alloc the returned image.
+inline Image pack_image(const std::vector<std::uint32_t>& fb, std::uint32_t width,
+                        std::uint32_t height) {
+    Image img;
+    img.width = width;
+    img.height = height;
+    img.rgba.resize(static_cast<std::size_t>(width) * height * 4u);
+    for (std::size_t i = 0; i < fb.size(); ++i) {
+        img.rgba[i * 4 + 0] = static_cast<std::uint8_t>(fb[i] & 0xFFu);
+        img.rgba[i * 4 + 1] = static_cast<std::uint8_t>((fb[i] >> 8) & 0xFFu);
+        img.rgba[i * 4 + 2] = static_cast<std::uint8_t>((fb[i] >> 16) & 0xFFu);
+        img.rgba[i * 4 + 3] = static_cast<std::uint8_t>((fb[i] >> 24) & 0xFFu);
+    }
+    return img;
+}
+
 /// The 256-entry CRC-32 table (reflected polynomial 0xEDB88320), built once on first use.
 /// @return The shared table. @complexity O(1) amortized (one 256×8 build per process).
 /// @alloc none after the first call (function-local static).

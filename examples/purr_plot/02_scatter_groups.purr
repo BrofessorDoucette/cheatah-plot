@@ -1,0 +1,22 @@
+# 02_scatter_groups — three point clusters, coloured by group id.
+import math
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+
+let n = 90
+let x = ndarray.zeros([n])
+let y = ndarray.zeros([n])
+let by : list<int> = []
+for i in range(n) {
+    let g = i % 3
+    let t = float(i) * 0.7
+    x[i] = float(g) * 3.0 + math.cos(t)
+    y[i] = float(g) + math.sin(t) * 0.6
+    by.append(g)
+}
+let s = series.scatter_grouped(x, y, by)
+let fig = figure.add(figure.new_figure(), s)
+fig = figure.title(fig, "three clusters")
+plot.save(fig, "out/02_scatter_groups.png")

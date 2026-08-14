@@ -1,0 +1,22 @@
+# 14_colormaps — the three continuous colormaps as heatmap strips.
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+import plot.color as color
+
+# One row of 64 values 0..1 per map; drawn as three stacked heatmaps.
+let cols = 64
+let ramp = ndarray.zeros([cols])
+for c in range(cols) {
+    ramp[c] = float(c) / float(cols - 1)
+}
+let strip = ndarray.reshape(ramp, [1, cols])
+let fig = figure.grid(3, 1)
+fig = figure.heatmap(figure.subplot(fig, 0, 0), strip)
+fig = figure.title(fig, "viridis")
+fig = figure.heatmap(figure.subplot(fig, 1, 0), strip)
+fig = figure.title(fig, "values 0..1")
+fig = figure.heatmap(figure.subplot(fig, 2, 0), strip)
+fig = figure.size(fig, 700, 460)
+plot.save(fig, "out/14_colormaps.png")

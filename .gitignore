@@ -79,3 +79,4 @@ systests/check.hpp.sha512
 
 # systest render outputs (written to the repo root by the qa_gate stage-5 runs)
 out_*.purr.png
+examples/purr_plot/out/

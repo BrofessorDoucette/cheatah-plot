@@ -1,0 +1,19 @@
+# 05_hist_gaussian — a histogram of pseudo-normal samples (sum of uniforms).
+import random
+import ndarray
+import plot
+import plot.figure as figure
+
+random.seed(7)
+let n = 2000
+let data = ndarray.zeros([n])
+for i in range(n) {
+    let acc = 0.0
+    for k in range(12) {
+        acc = acc + random.uniform(0.0, 1.0)
+    }
+    data[i] = acc - 6.0
+}
+let fig = figure.hist(figure.new_figure(), data, 30)
+fig = figure.title(fig, "sum of 12 uniforms")
+plot.save(fig, "out/05_hist_gaussian.png")

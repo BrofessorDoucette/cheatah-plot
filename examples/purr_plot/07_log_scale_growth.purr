@@ -1,0 +1,17 @@
+# 07_log_scale_growth — exponential growth straightened by a log y axis.
+import math
+import ndarray
+import plot
+import plot.figure as figure
+
+let n = 60
+let x = ndarray.zeros([n])
+let y = ndarray.zeros([n])
+for i in range(n) {
+    x[i] = float(i)
+    y[i] = math.exp(float(i) * 0.15)
+}
+let fig = figure.line(figure.new_figure(), x, y)
+fig = figure.yscale(fig, figure.log_scale())
+fig = figure.title(fig, "e^(0.15x), semilog-y")
+plot.save(fig, "out/07_log_scale_growth.png")
