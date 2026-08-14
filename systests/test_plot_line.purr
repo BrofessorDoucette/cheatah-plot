@@ -1,0 +1,37 @@
+# systests/test_plot_line — the line mark end to end: fluent build, styled variant, dashes,
+# NaN gaps tolerated, and a rendered PNG.
+
+import io
+import math
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+import plot.color as color
+import check
+
+io.print("== plot: line marks ==")
+let f = 0
+
+let x = ndarray.array([0.0, 1.0, 2.0, 3.0, 4.0])
+let y = ndarray.array([0.0, 1.0, 0.5, 2.0, 1.5])
+let fig = figure.line(figure.new_figure(), x, y)
+f += check.eq_int("one series", len(fig.subplots[0].series), 1)
+f += check.is_true("kind line", fig.subplots[0].series[0].kind == "line")
+
+# The styled arity: crimson, wide, dashed, labeled.
+let c = color.named("crimson")
+let d = series.dash_pattern(6.0, 3.0)
+let s = series.line_styled(x, y, c, 2.5, d, "styled")
+fig = figure.add(fig, s)
+f += check.is_true("styled width", fig.subplots[0].series[1].width == 2.5)
+
+# A NaN in y renders as a gap — the figure still renders and saves.
+let gy = ndarray.array([0.0, math.nan, 2.0, 1.0, 3.0])
+fig = figure.add(fig, series.line(x, gy))
+fig = figure.size(fig, 300, 200)
+plot.save(fig, "out_line.purr.png")
+let bytes = io.read_file("out_line.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

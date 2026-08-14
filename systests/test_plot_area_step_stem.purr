@@ -1,0 +1,30 @@
+# systests/test_plot_area_step_stem — the filled-area, step, and stem marks.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+import check
+
+io.print("== plot: area + step + stem ==")
+let f = 0
+
+let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+let y = ndarray.array([1.0, 3.0, 2.0, 4.0])
+
+let fig = figure.area(figure.new_figure(), x, y)
+fig = figure.step(fig, x, y)
+let st = series.stem(x, y)
+fig = figure.add(fig, st)
+f += check.is_true("area kind", fig.subplots[0].series[0].kind == "area")
+f += check.is_true("step kind", fig.subplots[0].series[1].kind == "step")
+f += check.is_true("stem kind", fig.subplots[0].series[2].kind == "stem")
+f += check.is_true("stem head marker", fig.subplots[0].series[2].marker == "circle")
+
+fig = figure.size(fig, 300, 200)
+plot.save(fig, "out_area_step_stem.purr.png")
+let bytes = io.read_file("out_area_step_stem.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

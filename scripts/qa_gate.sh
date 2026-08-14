@@ -120,6 +120,7 @@ for t in "${tests[@]}"; do
     fi
 done
 [ "$sfails" -eq 0 ] || fail "$sfails of $sran system test file(s) failed"
+rm -f "$REPO_ROOT"/out_*.purr.png
 green "[qa-gate] system tests: $sran/$sran green."
 
 # 5b. Biome-install sandbox: prove a standard cheatah install can `biome add cheatah-plot` and use it

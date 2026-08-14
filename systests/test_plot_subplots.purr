@@ -1,0 +1,35 @@
+# systests/test_plot_subplots — the grid: targeting cells, per-cell axes, one PNG of it all.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import check
+
+io.print("== plot: subplot grids ==")
+let f = 0
+
+let x = ndarray.array([0.0, 1.0, 2.0])
+let y = ndarray.array([1.0, 3.0, 2.0])
+let data = ndarray.array([1.0, 1.0, 2.0, 2.0, 2.0, 3.0])
+
+let fig = figure.grid(2, 2)
+fig = figure.line(figure.subplot(fig, 0, 0), x, y)
+fig = figure.scatter(figure.subplot(fig, 0, 1), x, y)
+fig = figure.bar(figure.subplot(fig, 1, 0), x, y)
+fig = figure.hist(figure.subplot(fig, 1, 1), data, 3)
+f += check.eq_int("cell 0 filled", len(fig.subplots[0].series), 1)
+f += check.eq_int("cell 1 filled", len(fig.subplots[1].series), 1)
+f += check.eq_int("cell 2 filled", len(fig.subplots[2].series), 1)
+f += check.eq_int("cell 3 filled", len(fig.subplots[3].series), 1)
+
+fig = figure.title(figure.subplot(fig, 0, 0), "top-left")
+f += check.is_true("title on cell 0 only", fig.subplots[0].title == "top-left")
+f += check.is_true("cell 1 untitled", fig.subplots[1].title == "")
+
+fig = figure.size(fig, 500, 380)
+plot.save(fig, "out_grid.purr.png")
+let bytes = io.read_file("out_grid.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

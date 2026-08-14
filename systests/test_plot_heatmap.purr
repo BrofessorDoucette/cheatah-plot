@@ -1,0 +1,23 @@
+# systests/test_plot_heatmap — the heatmap mark over a 2-D grid.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import check
+
+io.print("== plot: heatmap ==")
+let f = 0
+
+let flat = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+let z = ndarray.reshape(flat, [3, 3])
+let fig = figure.heatmap(figure.new_figure(), z)
+f += check.is_true("heatmap kind", fig.subplots[0].series[0].kind == "heatmap")
+f += check.eq_int("nine cells", ndarray.size_of(fig.subplots[0].series[0].z), 9)
+
+fig = figure.size(fig, 260, 220)
+plot.save(fig, "out_heatmap.purr.png")
+let bytes = io.read_file("out_heatmap.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

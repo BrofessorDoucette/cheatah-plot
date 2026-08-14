@@ -1,0 +1,31 @@
+# systests/test_plot_fit_overlay — scatter + the lstsq trend line, the classic overlay.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import plot.stats as stats
+import check
+
+io.print("== plot: scatter + fit overlay ==")
+let f = 0
+
+let x = ndarray.array([0.0, 1.0, 2.0, 3.0, 4.0])
+let y = ndarray.array([1.2, 2.8, 5.1, 7.2, 8.9])
+let trend = stats.fit(x, y)
+# The fitted line of near-linear data stays close to the data at both ends.
+let d0 = trend[0] - y[0]
+let d4 = trend[4] - y[4]
+f += check.is_true("fit near start", d0 * d0 < 1.0)
+f += check.is_true("fit near end", d4 * d4 < 1.0)
+
+let fig = figure.scatter(figure.new_figure(), x, y)
+fig = figure.line(fig, x, trend)
+f += check.eq_int("two marks", len(fig.subplots[0].series), 2)
+
+fig = figure.size(fig, 300, 200)
+plot.save(fig, "out_fit.purr.png")
+let bytes = io.read_file("out_fit.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

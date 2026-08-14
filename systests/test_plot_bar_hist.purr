@@ -1,0 +1,35 @@
+# systests/test_plot_bar_hist — bars and the stats-backed histogram.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import plot.stats as stats
+import check
+
+io.print("== plot: bars + histogram ==")
+let f = 0
+
+let x = ndarray.array([1.0, 2.0, 3.0, 4.0])
+let y = ndarray.array([3.0, 7.0, 2.0, 5.0])
+let fig = figure.bar(figure.new_figure(), x, y)
+f += check.is_true("bar kind", fig.subplots[0].series[0].kind == "bar")
+f += check.is_true("slot fraction", fig.subplots[0].series[0].width == 0.8)
+
+let data = ndarray.array([0.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 9.0])
+let h = stats.histogram(data, 5)
+let total = 0.0
+for i in range(5) {
+    total = total + h.counts[i]
+}
+f += check.is_true("all samples binned", total == 10.0)
+
+let hfig = figure.hist(figure.new_figure(), data, 5)
+f += check.is_true("hist as touching bars", hfig.subplots[0].series[0].width == 1.0)
+
+fig = figure.size(fig, 300, 200)
+plot.save(fig, "out_bar.purr.png")
+let bytes = io.read_file("out_bar.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

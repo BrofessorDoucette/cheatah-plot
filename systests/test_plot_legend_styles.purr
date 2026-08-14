@@ -1,0 +1,40 @@
+# systests/test_plot_legend_styles — legends, labels, colours, dash and width styling together.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+import plot.color as color
+import check
+
+io.print("== plot: legend + styles ==")
+let f = 0
+
+let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+let y1 = ndarray.array([0.0, 1.0, 2.0, 3.0])
+let y2 = ndarray.array([3.0, 2.0, 1.0, 0.0])
+
+let up = color.named("forestgreen")
+let solid = ndarray.zeros([0])
+let a = series.line_styled(x, y1, up, 2.0, solid, "rising")
+let down = color.named("crimson")
+let dashes = series.dash_pattern(5.0, 3.0)
+let b = series.line_styled(x, y2, down, 1.0, dashes, "falling")
+
+let fig = figure.add(figure.new_figure(), a)
+fig = figure.add(fig, b)
+fig = figure.legend(fig, true)
+fig = figure.xlabel(fig, "t")
+fig = figure.ylabel(fig, "v")
+f += check.is_true("legend on", fig.subplots[0].legend)
+f += check.is_true("label a", fig.subplots[0].series[0].label == "rising")
+f += check.is_true("dash b", ndarray.size_of(fig.subplots[0].series[1].dash) == 2)
+f += check.is_true("labels set", fig.subplots[0].x.label == "t")
+
+fig = figure.size(fig, 320, 220)
+plot.save(fig, "out_legend.purr.png")
+let bytes = io.read_file("out_legend.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

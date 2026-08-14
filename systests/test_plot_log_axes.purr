@@ -1,0 +1,32 @@
+# systests/test_plot_log_axes — log scales: decade ticks and the semilog/log-log views.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import plot.scale as scale
+import check
+
+io.print("== plot: log axes ==")
+let f = 0
+
+let r = scale.Range({.lo = 1.0, .hi = 1000.0})
+let tk = scale.log_ticks(r, 5)
+f += check.eq_int("decade ticks", ndarray.size_of(tk), 4)
+f += check.is_true("first decade", tk[0] == 1.0)
+f += check.is_true("last decade", tk[3] == 1000.0)
+
+let x = ndarray.array([1.0, 10.0, 100.0, 1000.0])
+let y = ndarray.array([2.0, 20.0, 200.0, 2000.0])
+let fig = figure.line(figure.new_figure(), x, y)
+fig = figure.xscale(fig, figure.log_scale())
+fig = figure.yscale(fig, figure.log_scale())
+f += check.is_true("x is log", fig.subplots[0].x.scale.kind == "log")
+f += check.is_true("y is log", fig.subplots[0].y.scale.kind == "log")
+
+fig = figure.size(fig, 300, 200)
+plot.save(fig, "out_loglog.purr.png")
+let bytes = io.read_file("out_loglog.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

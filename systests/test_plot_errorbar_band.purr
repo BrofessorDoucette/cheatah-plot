@@ -1,0 +1,39 @@
+# systests/test_plot_errorbar_band — error bars (via stats.sem) and the fill_between band.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+import plot.stats as stats
+import check
+
+io.print("== plot: error bars + bands ==")
+let f = 0
+
+let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+let y = ndarray.array([2.0, 3.0, 2.5, 4.0])
+let sample = ndarray.array([2.0, 3.0, 2.5, 4.0])
+let e = stats.sem(sample)
+f += check.is_true("sem positive", e > 0.0)
+
+# Symmetric bars from the SEM magnitude.
+let lo = ndarray.zeros([4])
+let hi = ndarray.zeros([4])
+for i in range(4) {
+    lo[i] = y[i] - e
+    hi[i] = y[i] + e
+}
+let fig = figure.errorbar(figure.new_figure(), x, y, lo, hi)
+f += check.is_true("errorbar kind", fig.subplots[0].series[0].kind == "errorbar")
+
+let band = series.fill_between(x, lo, hi)
+fig = figure.add(fig, band)
+f += check.is_true("band kind", fig.subplots[0].series[1].kind == "fill_between")
+
+fig = figure.size(fig, 300, 200)
+plot.save(fig, "out_errorbar.purr.png")
+let bytes = io.read_file("out_errorbar.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)

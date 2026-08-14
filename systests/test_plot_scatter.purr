@@ -1,0 +1,38 @@
+# systests/test_plot_scatter — scatter marks: default circles, styled markers, by-grouping.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import plot.series as series
+import plot.color as color
+import check
+
+io.print("== plot: scatter marks ==")
+let f = 0
+
+let x = ndarray.array([1.0, 2.0, 3.0, 4.0])
+let y = ndarray.array([2.0, 4.0, 1.0, 3.0])
+let fig = figure.scatter(figure.new_figure(), x, y)
+f += check.is_true("circle default", fig.subplots[0].series[0].marker == "circle")
+
+let c = color.rgb(0.2, 0.4, 0.8)
+let s = series.scatter_styled(x, y, c, 9.0, "diamond", "pts")
+fig = figure.add(fig, s)
+f += check.is_true("diamond marker", fig.subplots[0].series[1].marker == "diamond")
+
+let by : list<int> = []
+by.append(0)
+by.append(1)
+by.append(0)
+by.append(1)
+let g = series.scatter_grouped(x, y, by)
+fig = figure.add(fig, g)
+f += check.eq_int("group ids carried", len(fig.subplots[0].series[2].by), 4)
+
+fig = figure.size(fig, 300, 200)
+plot.save(fig, "out_scatter.purr.png")
+let bytes = io.read_file("out_scatter.purr.png")
+f += check.is_true("PNG written", "IEND" in bytes)
+
+check.result(f)
