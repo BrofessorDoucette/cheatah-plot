@@ -27,7 +27,9 @@ for t in "${UNIT_BINS[@]}"; do
     [ -x "$bin" ] || { echo "[valgrind] missing $bin — cannot cover all unit tests"; status=1; continue; }
     log="/tmp/cheatah_plot_vg_$t.log"
     echo "[valgrind] memcheck: $t"
-    if ! "${VG[@]}" "$bin" >"$log" 2>&1; then
+    # The CPU reference path IS the memcheck target (the design contract): the GPU lanes are
+    # vendor-driver territory Valgrind cannot judge, and the reference is bit-exact anyway.
+    if ! CHEATAH_PLOT_FORCE_CPU=1 "${VG[@]}" "$bin" --gtest_filter='-GpuRaster.*' >"$log" 2>&1; then
         echo "[valgrind] ERRORS/LEAKS in $t:"; tail -50 "$log"; status=1
     fi
     # Coverage assertion: confirm every test actually executed under Valgrind (a crash/abort would run

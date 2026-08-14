@@ -140,9 +140,19 @@ else
     bold "Configuring + building (ASan + UBSan)…"
     cmake --preset asan         >/tmp/cheatah_plot_cfg_asan.log   2>&1 || { tail -20 /tmp/cheatah_plot_cfg_asan.log;   fail "configure (asan)"; }
     cmake --build --preset asan >/tmp/cheatah_plot_build_asan.log 2>&1 || { tail -30 /tmp/cheatah_plot_build_asan.log; fail "asan build"; }
-    bold "Running unit test suite under ASan + UBSan…"
+    bold "Running unit test suite under ASan + UBSan (CPU-pinned, full leak checking)…"
+    # Two passes, the cheatah-gpu-linalg precedent: the CPU-pinned pass leak-checks our whole
+    # code; the GPU-lane pass keeps ASan/UBSan armed but leak detection off — Vulkan vendor
+    # drivers hold process-lifetime caches LeakSanitizer reports at exit, and those blobs are
+    # not ours to fix.
+    CHEATAH_PLOT_FORCE_CPU=1 \
     UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ASAN_OPTIONS="detect_leaks=1:abort_on_error=1" \
-        ctest --preset asan --output-on-failure --exclude-regex '^qa_gate$' || fail "sanitizer (ASan/UBSan) tests"
+        ctest --preset asan --output-on-failure --exclude-regex '^qa_gate$|^GpuRaster' \
+        || fail "sanitizer (ASan/UBSan) tests"
+    bold "Running the GPU-lane tests under ASan + UBSan (driver leak-check exception)…"
+    UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ASAN_OPTIONS="detect_leaks=0:abort_on_error=1" \
+        ctest --preset asan --output-on-failure --tests-regex '^GpuRaster' \
+        || fail "sanitizer (GPU lane) tests"
 fi
 
 # 8. Valgrind memcheck (hard gate) ---------------------------------------------------------------
