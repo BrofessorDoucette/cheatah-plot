@@ -31,7 +31,8 @@ f += check.is_true("fit start", d0 * d0 < 0.000001)
 f += check.is_true("fit end", d3 * d3 < 0.000001)
 
 # SEM of {1,2,3,4}: stdev/sqrt(4) = sqrt(5/3)/2 (statistics.stdev under the hood).
-let s = stats.sem(ndarray.array([1.0, 2.0, 3.0, 4.0]))
+let sem_data = ndarray.array([1.0, 2.0, 3.0, 4.0])
+let s = stats.sem(sem_data)
 let ds = s - 0.6454972243679028
 f += check.is_true("sem value", ds * ds < 0.000000000001)
 
