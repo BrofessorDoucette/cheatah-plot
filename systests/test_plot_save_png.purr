@@ -1,0 +1,31 @@
+# systests/test_plot_save_png — the whole stack from cheatah: build a figure with the fluent
+# API, render it through the C++ renderer, save a PNG, and verify the file's magic bytes.
+
+import io
+import ndarray
+import plot
+import plot.figure as figure
+import check
+
+io.print("== plot: save a real PNG from cheatah ==")
+let f = 0
+
+let x = ndarray.array([0.0, 1.0, 2.0, 3.0, 4.0])
+let y = ndarray.array([0.0, 1.0, 4.0, 9.0, 16.0])
+let fig = figure.line(figure.new_figure(), x, y)
+fig = figure.title(fig, "parabola")
+fig = figure.size(fig, 320, 240)
+
+let path = "test_plot_save_png_out.png"
+plot.save(fig, path)
+
+# io.read_file reads the whole file; the PNG signature's ASCII "PNG" (bytes 1..3) plus the
+# IHDR/IEND chunk names must all be present in a real PNG stream. (The exact 8-byte magic is
+# asserted byte-for-byte in tests/render_test.cpp; this proves the purr-visible round trip.)
+let bytes = io.read_file(path)
+f += check.is_true("file has bytes", len(bytes) > 100)
+f += check.is_true("PNG signature", "PNG" in bytes)
+f += check.is_true("IHDR chunk", "IHDR" in bytes)
+f += check.is_true("IEND chunk", "IEND" in bytes)
+
+check.result(f)

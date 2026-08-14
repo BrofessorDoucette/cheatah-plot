@@ -49,6 +49,13 @@ struct Hist {
  * @complexity O(n + bins).
  * @alloc the three returned arrays.
  * @systest systests/test_stats.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.stats as stats
+ * import ndarray
+ * let data = ndarray.array([0.0, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
+ * let h = stats.histogram(data, 4)   # -> h.centers/h.counts are bar-ready arrays
+ * @endcode
  */
 inline Hist histogram(::cheatah::ndarray::basic_ndarray<double>& data, builtins::Value auto&& bins) {
     auto b = bins;
@@ -98,6 +105,17 @@ inline Hist histogram(::cheatah::ndarray::basic_ndarray<double>& data, builtins:
  * @complexity O(n) assembly + the lstsq solve.
  * @alloc the design/rhs operands and the returned array.
  * @systest systests/test_stats.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import plot.stats as stats
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([1.1, 2.9, 5.2, 6.8])
+ * let trend = stats.fit(x, y)
+ * let f = figure.new_figure()
+ * f = figure.line(f, x, trend)   # -> the least-squares trend over the data
+ * @endcode
  */
 inline ::cheatah::ndarray::basic_ndarray<double> fit(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     auto n = ndarray::size_of(x);
@@ -129,6 +147,13 @@ inline ::cheatah::ndarray::basic_ndarray<double> fit(::cheatah::ndarray::basic_n
  * @complexity O(n).
  * @alloc one transient list copy (statistics consumes lists).
  * @systest systests/test_stats.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.stats as stats
+ * import ndarray
+ * let data = ndarray.array([1.0, 2.0, 3.0, 4.0])
+ * let e = stats.sem(data)   # -> 0.645...: stdev / sqrt(4), an errorbar magnitude
+ * @endcode
  */
 inline double sem(::cheatah::ndarray::basic_ndarray<double>& data) {
     auto n = ndarray::size_of(data);

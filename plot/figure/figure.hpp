@@ -111,6 +111,13 @@ struct Figure {
  * @complexity O(1).
  * @alloc the Scale.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * let s = figure.linear()
+ * f = figure.xscale(f, s)   # -> back to the default linear x transform
+ * @endcode
  */
 inline Scale linear() {
     return Scale{.kind = static_cast<std::string>(std::string("linear"))};
@@ -124,6 +131,13 @@ inline Scale linear() {
  * @complexity O(1).
  * @alloc the Scale.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * let s = figure.log_scale()
+ * f = figure.yscale(f, s)   # -> the classic semilog-y view
+ * @endcode
  */
 inline Scale log_scale() {
     return Scale{.kind = static_cast<std::string>(std::string("log"))};
@@ -137,6 +151,12 @@ inline Scale log_scale() {
  * @complexity O(1).
  * @alloc the Axis.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let ax = figure.default_axis()
+ * let target = ax.ticks   # -> 6: unlabeled, linear, auto limits
+ * @endcode
  */
 inline Axis default_axis() {
     return Axis{.label = static_cast<std::string>(std::string("")), .scale = static_cast<Scale>(linear()), .lo = static_cast<double>(math::nan), .hi = static_cast<double>(math::nan), .ticks = static_cast<long long>(6LL)};
@@ -153,6 +173,16 @@ inline Axis default_axis() {
  * @complexity O(rows·cols).
  * @alloc the Figure and its subplots.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let y = ndarray.array([1.0, 4.0, 2.0])
+ * let f = figure.grid(2, 2)
+ * f = figure.subplot(f, 0, 1)
+ * f = figure.line(f, x, y)   # -> the line lands in the top-right cell
+ * @endcode
  */
 inline Figure grid(builtins::Value auto&& rows, builtins::Value auto&& cols) {
     auto r = rows;
@@ -193,6 +223,15 @@ inline Figure grid(builtins::Value auto&& rows, builtins::Value auto&& cols) {
  * @complexity O(1).
  * @alloc the Figure.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([0.0, 1.0, 4.0, 9.0])
+ * let f = figure.new_figure()
+ * f = figure.line(f, x, y)   # -> a 1x1 figure holding one line series
+ * @endcode
  */
 inline Figure new_figure() {
     return grid(1LL, 1LL);
@@ -209,6 +248,15 @@ inline Figure new_figure() {
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let data = ndarray.array([1.0, 2.0, 2.0, 3.0, 3.0, 3.0])
+ * let f = figure.grid(1, 2)
+ * f = figure.subplot(f, 0, 1)
+ * f = figure.hist(f, data, 3)   # -> the histogram fills the right-hand cell
+ * @endcode
  */
 inline Figure subplot(builtins::Value auto&& f, builtins::Value auto&& r, builtins::Value auto&& c) {
     auto g = f;
@@ -241,6 +289,17 @@ inline Figure subplot(builtins::Value auto&& f, builtins::Value auto&& r, builti
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let y = ndarray.array([2.0, 1.0, 3.0])
+ * let s = series.scatter(x, y)
+ * let f = figure.new_figure()
+ * f = figure.add(f, s)   # -> the pre-built scatter joins the current subplot
+ * @endcode
  */
 inline Figure add(builtins::Value auto&& f, builtins::Value auto&& s) {
     auto g = f;
@@ -261,6 +320,15 @@ inline Figure add(builtins::Value auto&& f, builtins::Value auto&& s) {
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([0.0, 1.0, 4.0, 9.0])
+ * let f = figure.new_figure()
+ * f = figure.line(f, x, y)   # -> one line mark in the single subplot
+ * @endcode
  */
 inline Figure line(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     return add(f, plot::series::line(x, y));
@@ -277,6 +345,15 @@ inline Figure line(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<d
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([1.0, 2.0, 3.0, 4.0])
+ * let y = ndarray.array([2.1, 3.9, 6.2, 7.8])
+ * let f = figure.new_figure()
+ * f = figure.scatter(f, x, y)   # -> circle markers in the single subplot
+ * @endcode
  */
 inline Figure scatter(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     return add(f, plot::series::scatter(x, y));
@@ -293,6 +370,15 @@ inline Figure scatter(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarra
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let counts = ndarray.array([4.0, 7.0, 2.0])
+ * let f = figure.new_figure()
+ * f = figure.bar(f, x, counts)   # -> three vertical bars
+ * @endcode
  */
 inline Figure bar(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     return add(f, plot::series::bar(x, y));
@@ -309,6 +395,15 @@ inline Figure bar(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<do
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([0.5, 1.5, 1.0, 2.0])
+ * let f = figure.new_figure()
+ * f = figure.area(f, x, y)   # -> the filled area under the curve
+ * @endcode
  */
 inline Figure area(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     return add(f, plot::series::area(x, y));
@@ -325,6 +420,15 @@ inline Figure area(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<d
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([1.0, 3.0, 2.0, 2.5])
+ * let f = figure.new_figure()
+ * f = figure.step(f, x, y)   # -> a hold-until-next-x step line
+ * @endcode
  */
 inline Figure step(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     return add(f, plot::series::step(x, y));
@@ -343,6 +447,17 @@ inline Figure step(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<d
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let y = ndarray.array([2.0, 3.0, 2.5])
+ * let ylo = ndarray.array([1.7, 2.6, 2.2])
+ * let yhi = ndarray.array([2.3, 3.4, 2.8])
+ * let f = figure.new_figure()
+ * f = figure.errorbar(f, x, y, ylo, yhi)   # -> whiskered points in the subplot
+ * @endcode
  */
 inline Figure errorbar(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y, ::cheatah::ndarray::basic_ndarray<double>& ylo, ::cheatah::ndarray::basic_ndarray<double>& yhi) {
     return add(f, plot::series::errorbar(x, y, ylo, yhi));
@@ -358,6 +473,15 @@ inline Figure errorbar(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarr
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let flat = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+ * let z = ndarray.reshape(flat, [2, 3])
+ * let f = figure.new_figure()
+ * f = figure.heatmap(f, z)   # -> the 2x3 grid, coloured by value
+ * @endcode
  */
 inline Figure heatmap(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<double>& z) {
     return add(f, plot::series::heatmap(z));
@@ -375,6 +499,14 @@ inline Figure heatmap(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarra
  * @complexity O(n + bins + figure).
  * @alloc the returned copy plus the histogram arrays.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let data = ndarray.array([1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0])
+ * let f = figure.new_figure()
+ * f = figure.hist(f, data, 4)   # -> touching histogram bars over 4 bins
+ * @endcode
  */
 inline Figure hist(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<double>& data, builtins::Value auto&& bins) {
     auto h = plot::stats::histogram(data, bins);
@@ -393,6 +525,12 @@ inline Figure hist(builtins::Value auto&& f, ::cheatah::ndarray::basic_ndarray<d
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * f = figure.title(f, "convergence")   # -> the current subplot is titled
+ * @endcode
  */
 inline Figure title(builtins::Value auto&& f, builtins::Value auto&& t) {
     auto g = f;
@@ -412,6 +550,12 @@ inline Figure title(builtins::Value auto&& f, builtins::Value auto&& t) {
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * f = figure.xlabel(f, "epoch")   # -> the x axis reads "epoch"
+ * @endcode
  */
 inline Figure xlabel(builtins::Value auto&& f, builtins::Value auto&& s) {
     auto g = f;
@@ -431,6 +575,12 @@ inline Figure xlabel(builtins::Value auto&& f, builtins::Value auto&& s) {
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * f = figure.ylabel(f, "loss")   # -> the y axis reads "loss"
+ * @endcode
  */
 inline Figure ylabel(builtins::Value auto&& f, builtins::Value auto&& s) {
     auto g = f;
@@ -451,6 +601,12 @@ inline Figure ylabel(builtins::Value auto&& f, builtins::Value auto&& s) {
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * f = figure.xlim(f, 0.0, 10.0)   # -> x spans exactly [0, 10]; auto is overridden
+ * @endcode
  */
 inline Figure xlim(builtins::Value auto&& f, builtins::Value auto&& lo, builtins::Value auto&& hi) {
     auto g = f;
@@ -472,6 +628,12 @@ inline Figure xlim(builtins::Value auto&& f, builtins::Value auto&& lo, builtins
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * f = figure.ylim(f, -1.0, 1.0)   # -> y pinned to [-1, 1]
+ * @endcode
  */
 inline Figure ylim(builtins::Value auto&& f, builtins::Value auto&& lo, builtins::Value auto&& hi) {
     auto g = f;
@@ -492,6 +654,13 @@ inline Figure ylim(builtins::Value auto&& f, builtins::Value auto&& lo, builtins
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * let s = figure.log_scale()
+ * f = figure.xscale(f, s)   # -> decade ticks along x
+ * @endcode
  */
 inline Figure xscale(builtins::Value auto&& f, builtins::Value auto&& s) {
     auto g = f;
@@ -511,6 +680,13 @@ inline Figure xscale(builtins::Value auto&& f, builtins::Value auto&& s) {
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * let s = figure.log_scale()
+ * f = figure.yscale(f, s)   # -> log10 y; ticks land on decades
+ * @endcode
  */
 inline Figure yscale(builtins::Value auto&& f, builtins::Value auto&& s) {
     auto g = f;
@@ -530,6 +706,16 @@ inline Figure yscale(builtins::Value auto&& f, builtins::Value auto&& s) {
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let y = ndarray.array([1.0, 2.0, 4.0])
+ * let f = figure.new_figure()
+ * f = figure.line(f, x, y)
+ * f = figure.legend(f, true)   # -> labeled series get legend entries
+ * @endcode
  */
 inline Figure legend(builtins::Value auto&& f, builtins::Value auto&& on) {
     auto g = f;
@@ -550,6 +736,12 @@ inline Figure legend(builtins::Value auto&& f, builtins::Value auto&& on) {
  * @complexity O(figure).
  * @alloc the returned copy.
  * @systest systests/test_figure.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.figure as figure
+ * let f = figure.new_figure()
+ * f = figure.size(f, 1280, 720)   # -> a 1280x720 canvas
+ * @endcode
  */
 inline Figure size(builtins::Value auto&& f, builtins::Value auto&& w, builtins::Value auto&& h) {
     auto g = f;

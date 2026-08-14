@@ -163,5 +163,9 @@ bash scripts/cppcheck.sh || fail "cppcheck (performance/security findings)"
 bold "Scanning for private-project references…"
 bash scripts/check_no_private_refs.sh || fail "a private-project reference is in the tree"
 
+# 11. Documentation examples compile (hard gate): every @code{.purr} block is a real program ----
+bold "Compiling every documentation example…"
+bash scripts/check_doc_examples.sh || fail "a documentation example does not compile"
+
 bold "QA gate PASSED — push may proceed."
 exit 0

@@ -30,6 +30,13 @@ struct Scale {
 # @complexity O(1).
 # @alloc the Scale.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# let s = figure.linear()
+# f = figure.xscale(f, s)   # -> back to the default linear x transform
+# @endcode
 fn linear() -> Scale {
     return Scale({.kind = "linear"})
 }
@@ -40,6 +47,13 @@ fn linear() -> Scale {
 # @complexity O(1).
 # @alloc the Scale.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# let s = figure.log_scale()
+# f = figure.yscale(f, s)   # -> the classic semilog-y view
+# @endcode
 fn log_scale() -> Scale {
     return Scale({.kind = "log"})
 }
@@ -80,6 +94,12 @@ struct Figure {
 # @complexity O(1).
 # @alloc the Axis.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let ax = figure.default_axis()
+# let target = ax.ticks   # -> 6: unlabeled, linear, auto limits
+# @endcode
 fn default_axis() -> Axis {
     return Axis({.label = "", .scale = linear(), .lo = math.nan, .hi = math.nan, .ticks = 6})
 }
@@ -93,6 +113,16 @@ fn default_axis() -> Axis {
 # @complexity O(rows·cols).
 # @alloc the Figure and its subplots.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0])
+# let y = ndarray.array([1.0, 4.0, 2.0])
+# let f = figure.grid(2, 2)
+# f = figure.subplot(f, 0, 1)
+# f = figure.line(f, x, y)   # -> the line lands in the top-right cell
+# @endcode
 fn grid(rows : int, cols : int) -> Figure {
     let r = rows
     if r < 1 {
@@ -118,6 +148,15 @@ fn grid(rows : int, cols : int) -> Figure {
 # @complexity O(1).
 # @alloc the Figure.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+# let y = ndarray.array([0.0, 1.0, 4.0, 9.0])
+# let f = figure.new_figure()
+# f = figure.line(f, x, y)   # -> a 1x1 figure holding one line series
+# @endcode
 fn new_figure() -> Figure {
     return grid(1, 1)
 }
@@ -131,6 +170,15 @@ fn new_figure() -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let data = ndarray.array([1.0, 2.0, 2.0, 3.0, 3.0, 3.0])
+# let f = figure.grid(1, 2)
+# f = figure.subplot(f, 0, 1)
+# f = figure.hist(f, data, 3)   # -> the histogram fills the right-hand cell
+# @endcode
 fn subplot(f : Figure, r : int, c : int) -> Figure {
     let g = f
     let rr = r
@@ -152,6 +200,17 @@ fn subplot(f : Figure, r : int, c : int) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import plot.series as series
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0])
+# let y = ndarray.array([2.0, 1.0, 3.0])
+# let s = series.scatter(x, y)
+# let f = figure.new_figure()
+# f = figure.add(f, s)   # -> the pre-built scatter joins the current subplot
+# @endcode
 fn add(f : Figure, s : Series) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -169,6 +228,15 @@ fn add(f : Figure, s : Series) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+# let y = ndarray.array([0.0, 1.0, 4.0, 9.0])
+# let f = figure.new_figure()
+# f = figure.line(f, x, y)   # -> one line mark in the single subplot
+# @endcode
 fn line(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
     return add(f, series.line(x, y))
 }
@@ -182,6 +250,15 @@ fn line(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([1.0, 2.0, 3.0, 4.0])
+# let y = ndarray.array([2.1, 3.9, 6.2, 7.8])
+# let f = figure.new_figure()
+# f = figure.scatter(f, x, y)   # -> circle markers in the single subplot
+# @endcode
 fn scatter(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
     return add(f, series.scatter(x, y))
 }
@@ -195,6 +272,15 @@ fn scatter(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0])
+# let counts = ndarray.array([4.0, 7.0, 2.0])
+# let f = figure.new_figure()
+# f = figure.bar(f, x, counts)   # -> three vertical bars
+# @endcode
 fn bar(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
     return add(f, series.bar(x, y))
 }
@@ -208,6 +294,15 @@ fn bar(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+# let y = ndarray.array([0.5, 1.5, 1.0, 2.0])
+# let f = figure.new_figure()
+# f = figure.area(f, x, y)   # -> the filled area under the curve
+# @endcode
 fn area(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
     return add(f, series.area(x, y))
 }
@@ -221,6 +316,15 @@ fn area(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+# let y = ndarray.array([1.0, 3.0, 2.0, 2.5])
+# let f = figure.new_figure()
+# f = figure.step(f, x, y)   # -> a hold-until-next-x step line
+# @endcode
 fn step(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
     return add(f, series.step(x, y))
 }
@@ -236,6 +340,17 @@ fn step(f : Figure, x : ndarray<float>, y : ndarray<float>) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0])
+# let y = ndarray.array([2.0, 3.0, 2.5])
+# let ylo = ndarray.array([1.7, 2.6, 2.2])
+# let yhi = ndarray.array([2.3, 3.4, 2.8])
+# let f = figure.new_figure()
+# f = figure.errorbar(f, x, y, ylo, yhi)   # -> whiskered points in the subplot
+# @endcode
 fn errorbar(f : Figure, x : ndarray<float>, y : ndarray<float>, ylo : ndarray<float>,
             yhi : ndarray<float>) -> Figure {
     return add(f, series.errorbar(x, y, ylo, yhi))
@@ -249,6 +364,15 @@ fn errorbar(f : Figure, x : ndarray<float>, y : ndarray<float>, ylo : ndarray<fl
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let flat = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+# let z = ndarray.reshape(flat, [2, 3])
+# let f = figure.new_figure()
+# f = figure.heatmap(f, z)   # -> the 2x3 grid, coloured by value
+# @endcode
 fn heatmap(f : Figure, z : ndarray<float>) -> Figure {
     return add(f, series.heatmap(z))
 }
@@ -263,6 +387,14 @@ fn heatmap(f : Figure, z : ndarray<float>) -> Figure {
 # @complexity O(n + bins + figure).
 # @alloc the returned copy plus the histogram arrays.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let data = ndarray.array([1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0])
+# let f = figure.new_figure()
+# f = figure.hist(f, data, 4)   # -> touching histogram bars over 4 bins
+# @endcode
 fn hist(f : Figure, data : ndarray<float>, bins : int) -> Figure {
     let h = stats.histogram(data, bins)
     let s = series.bar(h.centers, h.counts)
@@ -278,6 +410,12 @@ fn hist(f : Figure, data : ndarray<float>, bins : int) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# f = figure.title(f, "convergence")   # -> the current subplot is titled
+# @endcode
 fn title(f : Figure, t : str) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -294,6 +432,12 @@ fn title(f : Figure, t : str) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# f = figure.xlabel(f, "epoch")   # -> the x axis reads "epoch"
+# @endcode
 fn xlabel(f : Figure, s : str) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -310,6 +454,12 @@ fn xlabel(f : Figure, s : str) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# f = figure.ylabel(f, "loss")   # -> the y axis reads "loss"
+# @endcode
 fn ylabel(f : Figure, s : str) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -327,6 +477,12 @@ fn ylabel(f : Figure, s : str) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# f = figure.xlim(f, 0.0, 10.0)   # -> x spans exactly [0, 10]; auto is overridden
+# @endcode
 fn xlim(f : Figure, lo : float, hi : float) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -345,6 +501,12 @@ fn xlim(f : Figure, lo : float, hi : float) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# f = figure.ylim(f, -1.0, 1.0)   # -> y pinned to [-1, 1]
+# @endcode
 fn ylim(f : Figure, lo : float, hi : float) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -362,6 +524,13 @@ fn ylim(f : Figure, lo : float, hi : float) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# let s = figure.log_scale()
+# f = figure.xscale(f, s)   # -> decade ticks along x
+# @endcode
 fn xscale(f : Figure, s : Scale) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -378,6 +547,13 @@ fn xscale(f : Figure, s : Scale) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# let s = figure.log_scale()
+# f = figure.yscale(f, s)   # -> log10 y; ticks land on decades
+# @endcode
 fn yscale(f : Figure, s : Scale) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -394,6 +570,16 @@ fn yscale(f : Figure, s : Scale) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# import ndarray
+# let x = ndarray.array([0.0, 1.0, 2.0])
+# let y = ndarray.array([1.0, 2.0, 4.0])
+# let f = figure.new_figure()
+# f = figure.line(f, x, y)
+# f = figure.legend(f, true)   # -> labeled series get legend entries
+# @endcode
 fn legend(f : Figure, on : bool) -> Figure {
     let g = f
     let sp = g.subplots[g.cur]
@@ -411,6 +597,12 @@ fn legend(f : Figure, on : bool) -> Figure {
 # @complexity O(figure).
 # @alloc the returned copy.
 # @systest systests/test_figure.purr
+# @par Example
+# @code{.purr}
+# import plot.figure as figure
+# let f = figure.new_figure()
+# f = figure.size(f, 1280, 720)   # -> a 1280x720 canvas
+# @endcode
 fn size(f : Figure, w : int, h : int) -> Figure {
     let g = f
     let ww = w

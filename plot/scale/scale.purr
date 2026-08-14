@@ -24,6 +24,13 @@ struct Range {
 # @complexity O(n).
 # @alloc the Range.
 # @systest systests/test_scale.purr
+# @par Example
+# @code{.purr}
+# import plot.scale as scale
+# import ndarray
+# let values = ndarray.array([3.2, 7.9, 5.1, 4.4])
+# let r = scale.data_range(values)   # -> Range 3.2 .. 7.9, ready for ticks()
+# @endcode
 fn data_range(values : ndarray<float>) -> Range {
     let n = ndarray.size_of(values)
     if n == 0 {
@@ -51,6 +58,12 @@ fn data_range(values : ndarray<float>) -> Range {
 # @complexity O(1).
 # @alloc none.
 # @systest systests/test_scale.purr
+# @par Example
+# @code{.purr}
+# import plot.scale as scale
+# let r = scale.Range({.lo = 0.0, .hi = 7.3})
+# let step = scale.nice_step(r.hi - r.lo, 6)   # -> 1.0: gridlines land on whole numbers
+# @endcode
 fn nice_step(span : float, target : int) -> float {
     let raw = span / float(target)
     let magnitude = math.pow(10.0, math.floor(math.log10(raw)))
@@ -74,6 +87,12 @@ fn nice_step(span : float, target : int) -> float {
 # @complexity O(ticks).
 # @alloc the returned tick array.
 # @systest systests/test_scale.purr
+# @par Example
+# @code{.purr}
+# import plot.scale as scale
+# let r = scale.Range({.lo = 0.0, .hi = 7.3})
+# let t = scale.ticks(r, 6)   # -> [0, 1, 2, 3, 4, 5, 6, 7]
+# @endcode
 fn ticks(r : Range, target : int) -> ndarray<float> {
     let span = r.hi - r.lo
     if span <= 0.0 {
@@ -114,6 +133,12 @@ fn ticks(r : Range, target : int) -> ndarray<float> {
 # @complexity O(ticks).
 # @alloc the returned tick array.
 # @systest systests/test_scale.purr
+# @par Example
+# @code{.purr}
+# import plot.scale as scale
+# let r = scale.Range({.lo = 1.0, .hi = 10000.0})
+# let t = scale.log_ticks(r, 5)   # -> [1, 10, 100, 1000, 10000]: decade marks
+# @endcode
 fn log_ticks(r : Range, target : int) -> ndarray<float> {
     if r.lo <= 0.0 {
         return ticks(r, target)
@@ -198,6 +223,13 @@ fn log_ticks(r : Range, target : int) -> ndarray<float> {
 # @complexity O(1).
 # @alloc none.
 # @systest systests/test_scale.purr
+# @par Example
+# @code{.purr}
+# import plot.scale as scale
+# let r = scale.Range({.lo = 0.0, .hi = 10.0})
+# let px = scale.to_pixel(2.5, r, 0.0, 800.0)   # -> 200.0
+# let py = scale.to_pixel(2.5, r, 600.0, 0.0)   # -> 450.0: flipped span for screen Y
+# @endcode
 fn to_pixel(value : float, r : Range, px_lo : float, px_hi : float) -> float {
     let span = r.hi - r.lo
     if span <= 0.0 {
@@ -218,6 +250,12 @@ fn to_pixel(value : float, r : Range, px_lo : float, px_hi : float) -> float {
 # @complexity O(1).
 # @alloc none.
 # @systest systests/test_scale.purr
+# @par Example
+# @code{.purr}
+# import plot.scale as scale
+# let r = scale.Range({.lo = 1.0, .hi = 1000.0})
+# let px = scale.to_pixel_log(10.0, r, 0.0, 900.0)   # -> 300.0: one decade of three
+# @endcode
 fn to_pixel_log(value : float, r : Range, px_lo : float, px_hi : float) -> float {
     if r.lo <= 0.0 {
         return to_pixel(value, r, px_lo, px_hi)

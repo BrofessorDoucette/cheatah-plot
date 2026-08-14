@@ -62,6 +62,12 @@ inline std::ostream& operator<<(std::ostream& os_, const Color& v_) {
  * @complexity O(1).
  * @alloc the Color.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let steel = color.rgb(0.275, 0.510, 0.706)
+ * let a = steel.a   # -> 1.0: rgb always builds an opaque colour
+ * @endcode
  */
 inline Color rgb(builtins::Value auto&& r, builtins::Value auto&& g, builtins::Value auto&& b) {
     return Color{.r = static_cast<double>(r), .g = static_cast<double>(g), .b = static_cast<double>(b), .a = static_cast<double>(1.0)};
@@ -80,6 +86,12 @@ inline Color rgb(builtins::Value auto&& r, builtins::Value auto&& g, builtins::V
  * @complexity O(1).
  * @alloc the Color.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let band = color.rgba(0.122, 0.467, 0.706, 0.25)
+ * let a = band.a   # -> 0.25: a translucent blue for bands and fills
+ * @endcode
  */
 inline Color rgba(builtins::Value auto&& r, builtins::Value auto&& g, builtins::Value auto&& b, builtins::Value auto&& a) {
     return Color{.r = static_cast<double>(r), .g = static_cast<double>(g), .b = static_cast<double>(b), .a = static_cast<double>(a)};
@@ -94,6 +106,12 @@ inline Color rgba(builtins::Value auto&& r, builtins::Value auto&& g, builtins::
  * @complexity O(1).
  * @alloc the Color.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let c = color.auto_color()
+ * let a = color.is_auto(c)   # -> true: the figure will assign the next palette colour
+ * @endcode
  */
 inline Color auto_color() {
     return Color{.r = static_cast<double>(0.0), .g = static_cast<double>(0.0), .b = static_cast<double>(0.0), .a = static_cast<double>(0.0)};
@@ -109,6 +127,12 @@ inline Color auto_color() {
  * @complexity O(1).
  * @alloc none.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let c = color.named("tomato")
+ * let a = color.is_auto(c)   # -> false: an explicit colour is kept as-is
+ * @endcode
  */
 inline bool is_auto(builtins::Value auto&& c) {
     return (c.a == 0.0);
@@ -126,6 +150,13 @@ inline bool is_auto(builtins::Value auto&& c) {
  * @complexity O(1).
  * @alloc the Color.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let blue = color.rgb(0.0, 0.0, 1.0)
+ * let red = color.rgb(1.0, 0.0, 0.0)
+ * let mid = color.lerp(blue, red, 0.5)   # -> the even blend (r 0.5, b 0.5)
+ * @endcode
  */
 inline Color lerp(builtins::Value auto&& c0, builtins::Value auto&& c1, builtins::Value auto&& t) {
     auto u = t;
@@ -154,6 +185,15 @@ inline Color lerp(builtins::Value auto&& c0, builtins::Value auto&& c1, builtins
  * @complexity O(1).
  * @alloc the Color.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * import Color from plot.color
+ * let anchors : list<Color> = []
+ * anchors.append(color.rgb(0.0, 0.0, 0.5))
+ * anchors.append(color.rgb(1.0, 1.0, 0.0))
+ * let mid = color.sample(anchors, 0.5)   # -> halfway between the two stops
+ * @endcode
  */
 inline Color sample(builtins::Value auto&& anchors, builtins::Value auto&& t) {
     auto n = builtins::len(anchors);
@@ -188,6 +228,12 @@ inline Color sample(builtins::Value auto&& anchors, builtins::Value auto&& t) {
  * @complexity O(1).
  * @alloc the Color (plus the transient anchor table).
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let lo = color.viridis(0.0)   # -> dark violet
+ * let hi = color.viridis(1.0)   # -> bright yellow
+ * @endcode
  */
 inline Color viridis(builtins::Value auto&& t) {
     std::vector<Color> anchors;
@@ -208,6 +254,12 @@ inline Color viridis(builtins::Value auto&& t) {
  * @complexity O(1).
  * @alloc the Color (plus the transient anchor table).
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let lo = color.magma(0.0)    # -> near black
+ * let hi = color.magma(0.75)   # -> warm orange
+ * @endcode
  */
 inline Color magma(builtins::Value auto&& t) {
     std::vector<Color> anchors;
@@ -229,6 +281,12 @@ inline Color magma(builtins::Value auto&& t) {
  * @complexity O(1).
  * @alloc the Color (plus the transient anchor table).
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let below = color.coolwarm(0.0)   # -> blue: under the midpoint
+ * let mid = color.coolwarm(0.5)     # -> pale grey: the meaningful middle
+ * @endcode
  */
 inline Color coolwarm(builtins::Value auto&& t) {
     std::vector<Color> anchors;
@@ -247,6 +305,12 @@ inline Color coolwarm(builtins::Value auto&& t) {
  * @complexity O(1).
  * @alloc the returned list.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let wheel = color.tab10()
+ * let second = wheel[1]   # -> the tab10 orange (series index 1)
+ * @endcode
  */
 inline std::vector<Color> tab10() {
     std::vector<Color> p;
@@ -273,6 +337,12 @@ inline std::vector<Color> tab10() {
  * @complexity O(1).
  * @alloc the returned list.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let dark = color.palette("dark")
+ * let first = dark[0]   # -> tab10 blue, darkened for light backgrounds
+ * @endcode
  */
 inline std::vector<Color> palette(builtins::Value auto&& name) {
     if ((name == std::string("dark"))) {
@@ -298,6 +368,12 @@ inline std::vector<Color> palette(builtins::Value auto&& name) {
  * @complexity O(1).
  * @alloc the Color.
  * @systest systests/test_color.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.color as color
+ * let stroke = color.named("crimson")
+ * let accent = color.named("gold")   # -> everyday colours for the _styled marks
+ * @endcode
  */
 inline Color named(builtins::Value auto&& name) {
     if ((name == std::string("white"))) {

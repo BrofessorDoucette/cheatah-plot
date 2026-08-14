@@ -67,6 +67,10 @@ add_executable(cheatah_plot_tests
     series_test.cpp
     stats_test.cpp
     figure_test.cpp
+    raster_test.cpp
+    png_test.cpp
+    font_test.cpp
+    render_test.cpp
 )
 target_include_directories(cheatah_plot_tests PRIVATE ${_cheatah_stdlib}/ndarray)  # header-only ndarray surface
 target_link_libraries(cheatah_plot_tests PRIVATE

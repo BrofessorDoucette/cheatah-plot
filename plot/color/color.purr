@@ -28,6 +28,12 @@ struct Color {
 # @complexity O(1).
 # @alloc the Color.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let steel = color.rgb(0.275, 0.510, 0.706)
+# let a = steel.a   # -> 1.0: rgb always builds an opaque colour
+# @endcode
 fn rgb(r : float, g : float, b : float) -> Color {
     return Color({.r = r, .g = g, .b = b, .a = 1.0})
 }
@@ -43,6 +49,12 @@ fn rgb(r : float, g : float, b : float) -> Color {
 # @complexity O(1).
 # @alloc the Color.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let band = color.rgba(0.122, 0.467, 0.706, 0.25)
+# let a = band.a   # -> 0.25: a translucent blue for bands and fills
+# @endcode
 fn rgba(r : float, g : float, b : float, a : float) -> Color {
     return Color({.r = r, .g = g, .b = b, .a = a})
 }
@@ -54,6 +66,12 @@ fn rgba(r : float, g : float, b : float, a : float) -> Color {
 # @complexity O(1).
 # @alloc the Color.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let c = color.auto_color()
+# let a = color.is_auto(c)   # -> true: the figure will assign the next palette colour
+# @endcode
 fn auto_color() -> Color {
     return Color({.r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0})
 }
@@ -66,6 +84,12 @@ fn auto_color() -> Color {
 # @complexity O(1).
 # @alloc none.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let c = color.named("tomato")
+# let a = color.is_auto(c)   # -> false: an explicit colour is kept as-is
+# @endcode
 fn is_auto(c : Color) -> bool {
     return c.a == 0.0
 }
@@ -80,6 +104,13 @@ fn is_auto(c : Color) -> bool {
 # @complexity O(1).
 # @alloc the Color.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let blue = color.rgb(0.0, 0.0, 1.0)
+# let red = color.rgb(1.0, 0.0, 0.0)
+# let mid = color.lerp(blue, red, 0.5)   # -> the even blend (r 0.5, b 0.5)
+# @endcode
 fn lerp(c0 : Color, c1 : Color, t : float) -> Color {
     let u = t
     if u < 0.0 { u = 0.0 }
@@ -99,6 +130,15 @@ fn lerp(c0 : Color, c1 : Color, t : float) -> Color {
 # @complexity O(1).
 # @alloc the Color.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# import Color from plot.color
+# let anchors : list<Color> = []
+# anchors.append(color.rgb(0.0, 0.0, 0.5))
+# anchors.append(color.rgb(1.0, 1.0, 0.0))
+# let mid = color.sample(anchors, 0.5)   # -> halfway between the two stops
+# @endcode
 fn sample(anchors : list<Color>, t : float) -> Color {
     let n = len(anchors)
     if n == 0 {
@@ -126,6 +166,12 @@ fn sample(anchors : list<Color>, t : float) -> Color {
 # @complexity O(1).
 # @alloc the Color (plus the transient anchor table).
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let lo = color.viridis(0.0)   # -> dark violet
+# let hi = color.viridis(1.0)   # -> bright yellow
+# @endcode
 fn viridis(t : float) -> Color {
     let anchors : list<Color> = []
     anchors.append(rgb(0.267, 0.005, 0.329))
@@ -143,6 +189,12 @@ fn viridis(t : float) -> Color {
 # @complexity O(1).
 # @alloc the Color (plus the transient anchor table).
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let lo = color.magma(0.0)    # -> near black
+# let hi = color.magma(0.75)   # -> warm orange
+# @endcode
 fn magma(t : float) -> Color {
     let anchors : list<Color> = []
     anchors.append(rgb(0.001, 0.000, 0.016))
@@ -161,6 +213,12 @@ fn magma(t : float) -> Color {
 # @complexity O(1).
 # @alloc the Color (plus the transient anchor table).
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let below = color.coolwarm(0.0)   # -> blue: under the midpoint
+# let mid = color.coolwarm(0.5)     # -> pale grey: the meaningful middle
+# @endcode
 fn coolwarm(t : float) -> Color {
     let anchors : list<Color> = []
     anchors.append(rgb(0.230, 0.299, 0.754))
@@ -176,6 +234,12 @@ fn coolwarm(t : float) -> Color {
 # @complexity O(1).
 # @alloc the returned list.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let wheel = color.tab10()
+# let second = wheel[1]   # -> the tab10 orange (series index 1)
+# @endcode
 fn tab10() -> list<Color> {
     let p : list<Color> = []
     p.append(rgb(0.122, 0.467, 0.706))
@@ -199,6 +263,12 @@ fn tab10() -> list<Color> {
 # @complexity O(1).
 # @alloc the returned list.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let dark = color.palette("dark")
+# let first = dark[0]   # -> tab10 blue, darkened for light backgrounds
+# @endcode
 fn palette(name : str) -> list<Color> {
     if name == "dark" {
         let base = tab10()
@@ -221,6 +291,12 @@ fn palette(name : str) -> list<Color> {
 # @complexity O(1).
 # @alloc the Color.
 # @systest systests/test_color.purr
+# @par Example
+# @code{.purr}
+# import plot.color as color
+# let stroke = color.named("crimson")
+# let accent = color.named("gold")   # -> everyday colours for the _styled marks
+# @endcode
 fn named(name : str) -> Color {
     if name == "white" { return rgb(1.0, 1.0, 1.0) }
     if name == "red" { return rgb(1.0, 0.0, 0.0) }

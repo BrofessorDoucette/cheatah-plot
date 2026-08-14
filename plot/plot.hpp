@@ -33,5 +33,11 @@
 #include "series/series.hpp"
 #include "stats/stats.hpp"
 #include "figure/figure.hpp"
+#include "renderer/render.hpp"
 
-namespace cheatah::plot {}
+namespace cheatah::plot {
+// The renderer's front door, surfaced at the package root so purr code writes
+// `plot.save(fig, "out.png")` / `plot.render(fig)` after building a figure.
+using renderer::render;
+using renderer::save;
+}  // namespace cheatah::plot

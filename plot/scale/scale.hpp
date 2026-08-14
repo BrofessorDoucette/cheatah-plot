@@ -53,6 +53,13 @@ inline std::ostream& operator<<(std::ostream& os_, const Range& v_) {
  * @complexity O(n).
  * @alloc the Range.
  * @systest systests/test_scale.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.scale as scale
+ * import ndarray
+ * let values = ndarray.array([3.2, 7.9, 5.1, 4.4])
+ * let r = scale.data_range(values)   # -> Range 3.2 .. 7.9, ready for ticks()
+ * @endcode
  */
 inline Range data_range(::cheatah::ndarray::basic_ndarray<double>& values) {
     auto n = ndarray::size_of(values);
@@ -87,6 +94,12 @@ inline Range data_range(::cheatah::ndarray::basic_ndarray<double>& values) {
  * @complexity O(1).
  * @alloc none.
  * @systest systests/test_scale.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.scale as scale
+ * let r = scale.Range({.lo = 0.0, .hi = 7.3})
+ * let step = scale.nice_step(r.hi - r.lo, 6)   # -> 1.0: gridlines land on whole numbers
+ * @endcode
  */
 inline double nice_step(builtins::Value auto&& span, builtins::Value auto&& target) {
     auto raw = builtins::truediv(span, builtins::to_float(target));
@@ -117,6 +130,12 @@ inline double nice_step(builtins::Value auto&& span, builtins::Value auto&& targ
  * @complexity O(ticks).
  * @alloc the returned tick array.
  * @systest systests/test_scale.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.scale as scale
+ * let r = scale.Range({.lo = 0.0, .hi = 7.3})
+ * let t = scale.ticks(r, 6)   # -> [0, 1, 2, 3, 4, 5, 6, 7]
+ * @endcode
  */
 inline ::cheatah::ndarray::basic_ndarray<double> ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
     auto span = (r.hi - r.lo);
@@ -159,6 +178,12 @@ inline ::cheatah::ndarray::basic_ndarray<double> ticks(builtins::Value auto&& r,
  * @complexity O(ticks).
  * @alloc the returned tick array.
  * @systest systests/test_scale.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.scale as scale
+ * let r = scale.Range({.lo = 1.0, .hi = 10000.0})
+ * let t = scale.log_ticks(r, 5)   # -> [1, 10, 100, 1000, 10000]: decade marks
+ * @endcode
  */
 inline ::cheatah::ndarray::basic_ndarray<double> log_ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
     if ((r.lo <= 0.0)) {
@@ -250,6 +275,13 @@ inline ::cheatah::ndarray::basic_ndarray<double> log_ticks(builtins::Value auto&
  * @complexity O(1).
  * @alloc none.
  * @systest systests/test_scale.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.scale as scale
+ * let r = scale.Range({.lo = 0.0, .hi = 10.0})
+ * let px = scale.to_pixel(2.5, r, 0.0, 800.0)   # -> 200.0
+ * let py = scale.to_pixel(2.5, r, 600.0, 0.0)   # -> 450.0: flipped span for screen Y
+ * @endcode
  */
 inline double to_pixel(builtins::Value auto&& value, builtins::Value auto&& r, builtins::Value auto&& px_lo, builtins::Value auto&& px_hi) {
     auto span = (r.hi - r.lo);
@@ -273,6 +305,12 @@ inline double to_pixel(builtins::Value auto&& value, builtins::Value auto&& r, b
  * @complexity O(1).
  * @alloc none.
  * @systest systests/test_scale.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.scale as scale
+ * let r = scale.Range({.lo = 1.0, .hi = 1000.0})
+ * let px = scale.to_pixel_log(10.0, r, 0.0, 900.0)   # -> 300.0: one decade of three
+ * @endcode
  */
 inline double to_pixel_log(builtins::Value auto&& value, builtins::Value auto&& r, builtins::Value auto&& px_lo, builtins::Value auto&& px_hi) {
     if ((r.lo <= 0.0)) {

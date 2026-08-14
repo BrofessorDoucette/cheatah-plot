@@ -57,6 +57,12 @@ struct Series {
  * @complexity O(1).
  * @alloc the Series (empty arrays).
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * let s = series.blank("line")
+ * s.width = 2.5   # -> start from the house defaults, restyle what differs
+ * @endcode
  */
 inline Series blank(builtins::Value auto&& kind) {
     std::vector<long long> empty_by;
@@ -89,6 +95,17 @@ inline Series blank(builtins::Value auto&& kind) {
  * @complexity O(1).
  * @alloc the returned array.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import plot.color as color
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let y = ndarray.array([1.0, 0.0, 1.0])
+ * let d = series.dash_pattern(6.0, 3.0)
+ * let c = color.auto_color()
+ * let s = series.line_styled(x, y, c, 1.5, d, "")   # -> a 6-on/3-off dashed line
+ * @endcode
  */
 inline ::cheatah::ndarray::basic_ndarray<double> dash_pattern(builtins::Value auto&& on, builtins::Value auto&& off) {
     auto d = ndarray::zeros(std::vector{2LL});
@@ -107,6 +124,14 @@ inline ::cheatah::ndarray::basic_ndarray<double> dash_pattern(builtins::Value au
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([0.0, 1.0, 4.0, 9.0])
+ * let s = series.line(x, y)   # -> a house-default line through the four points
+ * @endcode
  */
 inline Series line(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     auto s = blank(std::string("line"));
@@ -129,6 +154,17 @@ inline Series line(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndar
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import plot.color as color
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([0.0, 2.0, 1.0, 3.0])
+ * let c = color.named("crimson")
+ * let solid = ndarray.zeros([0])
+ * let s = series.line_styled(x, y, c, 2.0, solid, "loss")   # -> a bold labeled line
+ * @endcode
  */
 inline Series line_styled(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y, plot::color::Color& c, builtins::Value auto&& width, ::cheatah::ndarray::basic_ndarray<double>& dash, builtins::Value auto&& label) {
     auto s = line(x, y);
@@ -149,6 +185,14 @@ inline Series line_styled(::cheatah::ndarray::basic_ndarray<double>& x, ::cheata
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([1.0, 2.0, 3.0, 4.0])
+ * let y = ndarray.array([2.1, 3.9, 6.2, 7.8])
+ * let s = series.scatter(x, y)   # -> circle markers at the four points
+ * @endcode
  */
 inline Series scatter(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     auto s = blank(std::string("scatter"));
@@ -172,6 +216,16 @@ inline Series scatter(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::n
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import plot.color as color
+ * import ndarray
+ * let x = ndarray.array([1.0, 2.0, 3.0])
+ * let y = ndarray.array([2.0, 1.0, 3.0])
+ * let c = color.named("teal")
+ * let s = series.scatter_styled(x, y, c, 9.0, "diamond", "runs")   # -> big teal diamonds
+ * @endcode
  */
 inline Series scatter_styled(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y, plot::color::Color& c, builtins::Value auto&& size, builtins::Value auto&& marker, builtins::Value auto&& label) {
     auto s = scatter(x, y);
@@ -194,6 +248,15 @@ inline Series scatter_styled(::cheatah::ndarray::basic_ndarray<double>& x, ::che
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([1.0, 2.0, 1.5, 3.0])
+ * let groups = [0, 0, 1, 1]
+ * let s = series.scatter_grouped(x, y, groups)   # -> one palette colour per group
+ * @endcode
  */
 inline Series scatter_grouped(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y, builtins::Value auto&& by) {
     auto s = scatter(x, y);
@@ -211,6 +274,14 @@ inline Series scatter_grouped(::cheatah::ndarray::basic_ndarray<double>& x, ::ch
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let counts = ndarray.array([4.0, 7.0, 2.0])
+ * let s = series.bar(x, counts)   # -> three bars, each 0.8 of its slot wide
+ * @endcode
  */
 inline Series bar(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     auto s = blank(std::string("bar"));
@@ -234,6 +305,16 @@ inline Series bar(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarr
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import plot.color as color
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let y = ndarray.array([3.0, 5.0, 4.0])
+ * let c = color.named("steelblue")
+ * let s = series.bar_styled(x, y, c, 0.6, true, "2026")   # -> slim filled labeled bars
+ * @endcode
  */
 inline Series bar_styled(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y, plot::color::Color& c, builtins::Value auto&& width, builtins::Value auto&& fill, builtins::Value auto&& label) {
     auto s = bar(x, y);
@@ -254,6 +335,14 @@ inline Series bar_styled(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([0.5, 1.5, 1.0, 2.0])
+ * let s = series.area(x, y)   # -> the region under the curve, filled to the axis
+ * @endcode
  */
 inline Series area(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     auto s = blank(std::string("area"));
@@ -272,6 +361,14 @@ inline Series area(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndar
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([1.0, 3.0, 2.0, 2.5])
+ * let s = series.step(x, y)   # -> each value holds until the next x
+ * @endcode
  */
 inline Series step(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     auto s = blank(std::string("step"));
@@ -292,6 +389,16 @@ inline Series step(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndar
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let y = ndarray.array([2.0, 3.0, 2.5])
+ * let ylo = ndarray.array([1.7, 2.6, 2.2])
+ * let yhi = ndarray.array([2.3, 3.4, 2.8])
+ * let s = series.errorbar(x, y, ylo, yhi)   # -> whiskers spanning [ylo, yhi]
+ * @endcode
  */
 inline Series errorbar(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y, ::cheatah::ndarray::basic_ndarray<double>& ylo, ::cheatah::ndarray::basic_ndarray<double>& yhi) {
     auto s = blank(std::string("errorbar"));
@@ -313,6 +420,15 @@ inline Series errorbar(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0])
+ * let ylo = ndarray.array([0.5, 1.0, 0.8])
+ * let yhi = ndarray.array([1.5, 2.2, 1.9])
+ * let s = series.fill_between(x, ylo, yhi)   # -> a filled confidence-style band
+ * @endcode
  */
 inline Series fill_between(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& ylo, ::cheatah::ndarray::basic_ndarray<double>& yhi) {
     auto s = blank(std::string("fill_between"));
@@ -332,6 +448,14 @@ inline Series fill_between(::cheatah::ndarray::basic_ndarray<double>& x, ::cheat
  * @complexity O(1) — the arrays are shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let x = ndarray.array([0.0, 1.0, 2.0, 3.0])
+ * let y = ndarray.array([1.0, -0.5, 2.0, 0.75])
+ * let s = series.stem(x, y)   # -> circle-topped stems rising or dropping from the axis
+ * @endcode
  */
 inline Series stem(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     auto s = blank(std::string("stem"));
@@ -351,6 +475,14 @@ inline Series stem(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndar
  * @complexity O(1) — the grid is shared, not copied.
  * @alloc the Series.
  * @systest systests/test_series.purr
+ * @par Example
+ * @code{.purr}
+ * import plot.series as series
+ * import ndarray
+ * let flat = ndarray.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+ * let z = ndarray.reshape(flat, [2, 3])
+ * let s = series.heatmap(z)   # -> a 2x3 grid, coloured through the figure's colormap
+ * @endcode
  */
 inline Series heatmap(::cheatah::ndarray::basic_ndarray<double>& z) {
     auto s = blank(std::string("heatmap"));
