@@ -156,3 +156,17 @@ TEST(Raster, DeterministicAcrossRuns) {
     auto b = run(prims, 32, 32, kClear);
     EXPECT_EQ(a, b);                                 // byte-identical, twice
 }
+
+TEST(Raster, UnknownPrimTypeDrawsNothing) {
+    // Forward-compatibility guard: a prim carrying an unknown type code covers no pixels
+    // (the coverage dispatch's fall-through), so a newer drawlist degrades gracefully.
+    rr::Prim p{};
+    p.type = 99u;
+    p.rgba = kRed;
+    p.f[0] = 0.0f; p.f[1] = 0.0f; p.f[2] = 16.0f; p.f[3] = 16.0f;
+    auto fb = run({p}, 16, 16, kClear);
+    for (std::size_t i = 0; i < fb.size(); ++i) ASSERT_EQ(fb[i], kClear) << i;
+    // Binning already refuses the unknown kind; the coverage dispatch's own fall-through is
+    // the second, independent guard — hit it directly.
+    EXPECT_EQ(rr::detail::coverage(p, 8.0f, 8.0f), 0.0f);
+}

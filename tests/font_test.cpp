@@ -89,3 +89,31 @@ TEST(Font, VerticalBoundsAndLeftBearingHold) {
         }
     }
 }
+
+TEST(Font, ExpandGlyphRuntimePathMatchesTheTable) {
+    // The table is built at compile time, so llvm-cov never sees expand_glyph run; invoking it
+    // at runtime both covers it and proves the expansion law: 5-bit rows land left-aligned
+    // with the 1px bearing, at the core rows (descenders shifted down).
+    namespace rd = cheatah::plot::renderer::detail;
+    rd::Glyph5x7 bar{{0x1Fu, 0x00u, 0x1Fu, 0x00u, 0x1Fu, 0x00u, 0x1Fu}, false};
+    auto cell = rd::expand_glyph(bar);
+    EXPECT_EQ(cell[0], 0u);                                    // padding row stays empty
+    EXPECT_EQ(cell[static_cast<std::size_t>(rd::kCoreTopRow)], (0x1Fu << 2));
+    rd::Glyph5x7 tail{{0x11u, 0x11u, 0x11u, 0x11u, 0x11u, 0x11u, 0x11u}, true};
+    auto shifted = rd::expand_glyph(tail);
+    EXPECT_EQ(shifted[static_cast<std::size_t>(rd::kCoreTopRow)], 0u);   // shifted away
+    EXPECT_EQ(shifted[static_cast<std::size_t>(rd::kCoreTopRow + rd::kDescenderShift)],
+              (0x11u << 2));
+}
+
+TEST(Font, BuildFontRuntimePathMatchesTheServedTable) {
+    // Like expand_glyph, build_font runs at compile time for the served table; running it once
+    // at runtime covers it and pins the two paths together.
+    namespace rd = cheatah::plot::renderer::detail;
+    // Called through a volatile fn pointer so the constexpr call cannot constant-fold away.
+    std::array<std::array<std::uint8_t, 16>, 95> (*volatile fp)() = &rd::build_font;
+    auto built = fp();
+    EXPECT_EQ(built[static_cast<std::size_t>('A' - 32)],
+              cheatah::plot::renderer::glyph('A'));
+    EXPECT_EQ(built[0], cheatah::plot::renderer::glyph(' '));
+}

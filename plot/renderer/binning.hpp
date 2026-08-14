@@ -35,40 +35,32 @@ namespace detail {
 inline bool prim_bounds(const Prim& p, std::uint32_t width, std::uint32_t height, float& out_x0,
                         float& out_y0, float& out_x1, float& out_y1) {
     float x0 = 0.0f, y0 = 0.0f, x1 = 0.0f, y1 = 0.0f;
-    switch (static_cast<PrimType>(p.type)) {
-        case PrimType::kSeg: {
-            const float pad = p.f[4] + 1.0f;
-            x0 = std::min(p.f[0], p.f[2]) - pad;
-            y0 = std::min(p.f[1], p.f[3]) - pad;
-            x1 = std::max(p.f[0], p.f[2]) + pad;
-            y1 = std::max(p.f[1], p.f[3]) + pad;
-            break;
-        }
-        case PrimType::kDisc: {
-            const float pad = p.f[2] + 1.0f;
-            x0 = p.f[0] - pad; y0 = p.f[1] - pad;
-            x1 = p.f[0] + pad; y1 = p.f[1] + pad;
-            break;
-        }
-        case PrimType::kRect: {
-            const float pad = p.f[4] + 1.0f;
-            x0 = p.f[0] - pad; y0 = p.f[1] - pad;
-            x1 = p.f[2] + pad; y1 = p.f[3] + pad;
-            break;
-        }
-        case PrimType::kTri: {
-            x0 = std::min(p.f[0], std::min(p.f[2], p.f[4])) - 1.0f;
-            y0 = std::min(p.f[1], std::min(p.f[3], p.f[5])) - 1.0f;
-            x1 = std::max(p.f[0], std::max(p.f[2], p.f[4])) + 1.0f;
-            y1 = std::max(p.f[1], std::max(p.f[3], p.f[5])) + 1.0f;
-            break;
-        }
-        case PrimType::kGlyph: {
-            x0 = p.f[0]; y0 = p.f[1];
-            x1 = p.f[0] + static_cast<float>(kGlyphWidth);
-            y1 = p.f[1] + static_cast<float>(kGlyphHeight);
-            break;
-        }
+    const PrimType t = static_cast<PrimType>(p.type);
+    if (t == PrimType::kSeg) {
+        const float pad = p.f[4] + 1.0f;
+        x0 = std::min(p.f[0], p.f[2]) - pad;
+        y0 = std::min(p.f[1], p.f[3]) - pad;
+        x1 = std::max(p.f[0], p.f[2]) + pad;
+        y1 = std::max(p.f[1], p.f[3]) + pad;
+    } else if (t == PrimType::kDisc) {
+        const float pad = p.f[2] + 1.0f;
+        x0 = p.f[0] - pad; y0 = p.f[1] - pad;
+        x1 = p.f[0] + pad; y1 = p.f[1] + pad;
+    } else if (t == PrimType::kRect) {
+        const float pad = p.f[4] + 1.0f;
+        x0 = p.f[0] - pad; y0 = p.f[1] - pad;
+        x1 = p.f[2] + pad; y1 = p.f[3] + pad;
+    } else if (t == PrimType::kTri) {
+        x0 = std::min(p.f[0], std::min(p.f[2], p.f[4])) - 1.0f;
+        y0 = std::min(p.f[1], std::min(p.f[3], p.f[5])) - 1.0f;
+        x1 = std::max(p.f[0], std::max(p.f[2], p.f[4])) + 1.0f;
+        y1 = std::max(p.f[1], std::max(p.f[3], p.f[5])) + 1.0f;
+    } else if (t == PrimType::kGlyph) {
+        x0 = p.f[0]; y0 = p.f[1];
+        x1 = p.f[0] + static_cast<float>(kGlyphWidth);
+        y1 = p.f[1] + static_cast<float>(kGlyphHeight);
+    } else {
+        return false;   // unknown prim kind: bins nowhere (forward-compatible degradation)
     }
     if (x1 < 0.0f || y1 < 0.0f) return false;
     if (x0 >= static_cast<float>(width) || y0 >= static_cast<float>(height)) return false;

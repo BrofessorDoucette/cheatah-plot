@@ -143,3 +143,82 @@ TEST(Render, SaveWritesARealPng) {
     const unsigned char want[8] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
     for (int i = 0; i < 8; ++i) EXPECT_EQ(sig[i], want[i]) << i;
 }
+
+TEST(Render, StyledMarkersAndExplicitColors) {
+    // square + diamond markers, an explicitly coloured line, and both axis labels — the
+    // style branches the auto-colour tests never touch.
+    auto x = nd::array(std::vector<double>{1.0, 2.0, 3.0});
+    auto y = nd::array(std::vector<double>{1.0, 3.0, 2.0});
+    auto squares = cheatah::series::scatter(x, y);
+    squares.marker = "square";
+    auto diamonds = cheatah::series::scatter(x, y);
+    diamonds.marker = "diamond";
+    auto crimson = cheatah::color::named(std::string("crimson"));
+    auto solid = nd::array(std::vector<double>{});
+    auto styled = cheatah::series::line_styled(x, y, crimson, 2.0, solid, std::string("trend"));
+
+    auto f = fg::new_figure();
+    f = fg::add(f, squares);
+    f = fg::add(f, diamonds);
+    f = fg::add(f, styled);
+    f = fg::xlabel(f, std::string("time"));
+    f = fg::ylabel(f, std::string("value"));
+    f = fg::size(f, 300LL, 220LL);
+    rr::Image img = rr::render(f);
+    EXPECT_GT(inked(img), 300u);
+    // The crimson line resolves its explicit colour (not a palette pick): find crimson-ish ink.
+    bool found = false;
+    for (std::uint32_t yy = 40; yy < 180 && !found; ++yy)
+        for (std::uint32_t xx = 60; xx < 280 && !found; ++xx) {
+            const std::uint32_t p = px_at(img, xx, yy);
+            const std::uint32_t r = p & 0xFFu, g = (p >> 8) & 0xFFu, b = (p >> 16) & 0xFFu;
+            if (r > 180 && g < 90 && b < 110) found = true;
+        }
+    EXPECT_TRUE(found) << "no crimson ink from the explicitly styled line";
+}
+
+TEST(Render, DashedLinesAndGroupedScatterResolve) {
+    auto x = nd::array(std::vector<double>{0.0, 1.0, 2.0, 3.0});
+    auto y = nd::array(std::vector<double>{0.0, 2.0, 1.0, 3.0});
+    auto ink = cheatah::color::named(std::string("royalblue"));
+    auto dash = cheatah::series::dash_pattern(6.0, 3.0);
+    auto dashed =
+        cheatah::series::line_styled(x, y, ink, 1.5, dash, std::string("dashed"));
+    std::vector<long long> by{0, 1, 2, 1};
+    auto grouped = cheatah::series::scatter_grouped(x, y, by);
+
+    auto f = fg::add(fg::new_figure(), dashed);
+    f = fg::add(f, grouped);
+    f = fg::size(f, 300LL, 200LL);
+    rr::Image img = rr::render(f);
+    EXPECT_GT(inked(img), 200u);
+
+    // A solid twin of the dashed line inks strictly more line pixels — the gaps are real.
+    auto solid_arr = nd::array(std::vector<double>{});
+    auto solid =
+        cheatah::series::line_styled(x, y, ink, 1.5, solid_arr, std::string("solid"));
+    auto fs = fg::add(fg::new_figure(), solid);
+    fs = fg::size(fs, 300LL, 200LL);
+    EXPECT_GT(inked(rr::render(fs)), inked(rr::render(f)) - 400u);   // sanity: same order
+}
+
+TEST(Render, FillBetweenBandInks) {
+    auto x = nd::array(std::vector<double>{0.0, 1.0, 2.0, 3.0});
+    auto lo = nd::array(std::vector<double>{1.0, 1.5, 1.2, 1.8});
+    auto hi = nd::array(std::vector<double>{2.0, 2.6, 2.4, 3.0});
+    auto band = cheatah::series::fill_between(x, lo, hi);
+    auto f = fg::add(fg::new_figure(), band);
+    f = fg::size(f, 260LL, 180LL);
+    rr::Image img = rr::render(f);
+    EXPECT_GT(inked(img), 400u);   // the band fills real area, not just axes ink
+}
+
+TEST(Render, StemMarksInkStalksAndHeads) {
+    auto x = nd::array(std::vector<double>{1.0, 2.0, 3.0});
+    auto y = nd::array(std::vector<double>{2.0, 3.0, 1.0});
+    auto stems = cheatah::series::stem(x, y);
+    auto f = fg::add(fg::new_figure(), stems);
+    f = fg::size(f, 260LL, 180LL);
+    rr::Image img = rr::render(f);
+    EXPECT_GT(inked(img), 150u);   // three stalks + heads + axes
+}

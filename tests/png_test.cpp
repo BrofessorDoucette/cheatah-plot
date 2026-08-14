@@ -257,3 +257,16 @@ TEST(Png, MismatchedBufferAndUnwritablePathThrow) {
     EXPECT_THROW(r::save_png(good, missing_dir + ".png"), std::runtime_error);
     EXPECT_THROW(r::save_ppm(good, missing_dir + ".ppm"), std::runtime_error);
 }
+
+#ifdef __linux__
+TEST(Png, WriteFailureThrows) {
+    // /dev/full opens writable and fails on write/flush — the write-error throw paths for both
+    // encoders, exercised for real.
+    cheatah::plot::renderer::Image img;
+    img.width = 8;
+    img.height = 8;
+    img.rgba.assign(8u * 8u * 4u, 128);
+    EXPECT_THROW(cheatah::plot::renderer::save_png(img, "/dev/full"), std::runtime_error);
+    EXPECT_THROW(cheatah::plot::renderer::save_ppm(img, "/dev/full"), std::runtime_error);
+}
+#endif
