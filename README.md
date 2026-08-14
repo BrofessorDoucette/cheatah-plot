@@ -53,10 +53,10 @@ reference path) is the next layer; `plot.window` follows it.
 <!-- coverage:start -->
 | Metric | plot package |
 |--------|--------------|
-| **Lines** | 100.00% (178/178) |
-| **Functions** | 100.00% (73/73) |
-| Regions | 100.00% |
-| Branches | 95.40% |
+| **Lines** | 97.41% (376/386) |
+| **Functions** | 98.33% (118/120) |
+| Regions | 94.42% |
+| Branches | 85.65% |
 <!-- coverage:end -->
 
 ## License

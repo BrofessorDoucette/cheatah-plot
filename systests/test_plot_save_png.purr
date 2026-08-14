@@ -16,7 +16,7 @@ let fig = figure.line(figure.new_figure(), x, y)
 fig = figure.title(fig, "parabola")
 fig = figure.size(fig, 320, 240)
 
-let path = "test_plot_save_png_out.png"
+let path = "out_save.purr.png"
 plot.save(fig, path)
 
 # io.read_file reads the whole file; the PNG signature's ASCII "PNG" (bytes 1..3) plus the
