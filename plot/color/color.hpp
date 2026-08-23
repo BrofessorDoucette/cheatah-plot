@@ -27,10 +27,10 @@ namespace math = ::cheatah::math;
  * One RGBA colour, channels in [0, 1]. Alpha exactly 0 means "auto: take the next palette colour".
  */
 struct Color {
-    double r;
-    double g;
-    double b;
-    double a;
+    double r{};
+    double g{};
+    double b{};
+    double a{};
     void cheatah_pretty_print(std::ostream& os_, long long indent_) const {
         os_ << "Color(\n";
         os_ << std::string(indent_ + 4, ' ') << "r = ";
@@ -70,7 +70,7 @@ inline std::ostream& operator<<(std::ostream& os_, const Color& v_) {
  * @endcode
  */
 inline Color rgb(builtins::Value auto&& r, builtins::Value auto&& g, builtins::Value auto&& b) {
-    return Color{.r = static_cast<double>(r), .g = static_cast<double>(g), .b = static_cast<double>(b), .a = static_cast<double>(1.0)};
+    return Color{.r = static_cast<double>(r), .g = static_cast<double>(g), .b = static_cast<double>(b), .a = 1.0};
 }
 
 
@@ -114,7 +114,7 @@ inline Color rgba(builtins::Value auto&& r, builtins::Value auto&& g, builtins::
  * @endcode
  */
 inline Color auto_color() {
-    return Color{.r = static_cast<double>(0.0), .g = static_cast<double>(0.0), .b = static_cast<double>(0.0), .a = static_cast<double>(0.0)};
+    return Color{.r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0};
 }
 
 
@@ -160,10 +160,10 @@ inline bool is_auto(builtins::Value auto&& c) {
  */
 inline Color lerp(builtins::Value auto&& c0, builtins::Value auto&& c1, builtins::Value auto&& t) {
     auto u = t;
-    if ((u < 0.0)) {
+    if (u < 0.0) {
         u = 0.0;
     }
-    if ((u > 1.0)) {
+    if (u > 1.0) {
         u = 1.0;
     }
     return Color{
@@ -197,22 +197,22 @@ inline Color lerp(builtins::Value auto&& c0, builtins::Value auto&& c1, builtins
  */
 inline Color sample(builtins::Value auto&& anchors, builtins::Value auto&& t) {
     auto n = builtins::len(anchors);
-    if ((n == 0LL)) {
+    if (n == 0LL) {
         return rgb(0.0, 0.0, 0.0);
     }
-    if ((n == 1LL)) {
+    if (n == 1LL) {
         return builtins::index(anchors, 0LL);
     }
     auto u = t;
-    if ((u < 0.0)) {
+    if (u < 0.0) {
         u = 0.0;
     }
-    if ((u > 1.0)) {
+    if (u > 1.0) {
         u = 1.0;
     }
     auto pos = (u * builtins::to_float((n - 1LL)));
     auto i = builtins::to_int(math::floor(pos));
-    if ((i >= (n - 1LL))) {
+    if (i >= (n - 1LL)) {
         return builtins::index(anchors, (n - 1LL));
     }
     return lerp(builtins::index(anchors, i), builtins::index(anchors, (i + 1LL)), (pos - builtins::to_float(i)));
@@ -345,7 +345,7 @@ inline std::vector<Color> tab10() {
  * @endcode
  */
 inline std::vector<Color> palette(builtins::Value auto&& name) {
-    if ((name == std::string("dark"))) {
+    if (name == std::string("dark")) {
         auto base = tab10();
         std::vector<Color> p;
         for (long long i = 0; i < builtins::len(base); ++i) {
@@ -376,64 +376,64 @@ inline std::vector<Color> palette(builtins::Value auto&& name) {
  * @endcode
  */
 inline Color named(builtins::Value auto&& name) {
-    if ((name == std::string("white"))) {
+    if (name == std::string("white")) {
         return rgb(1.0, 1.0, 1.0);
     }
-    if ((name == std::string("red"))) {
+    if (name == std::string("red")) {
         return rgb(1.0, 0.0, 0.0);
     }
-    if ((name == std::string("green"))) {
+    if (name == std::string("green")) {
         return rgb(0.0, 0.502, 0.0);
     }
-    if ((name == std::string("blue"))) {
+    if (name == std::string("blue")) {
         return rgb(0.0, 0.0, 1.0);
     }
-    if ((name == std::string("orange"))) {
+    if (name == std::string("orange")) {
         return rgb(1.0, 0.647, 0.0);
     }
-    if ((name == std::string("purple"))) {
+    if (name == std::string("purple")) {
         return rgb(0.502, 0.0, 0.502);
     }
-    if ((name == std::string("brown"))) {
+    if (name == std::string("brown")) {
         return rgb(0.647, 0.165, 0.165);
     }
-    if ((name == std::string("pink"))) {
+    if (name == std::string("pink")) {
         return rgb(1.0, 0.753, 0.796);
     }
-    if ((name == std::string("gray"))) {
+    if (name == std::string("gray")) {
         return rgb(0.502, 0.502, 0.502);
     }
-    if ((name == std::string("cyan"))) {
+    if (name == std::string("cyan")) {
         return rgb(0.0, 1.0, 1.0);
     }
-    if ((name == std::string("magenta"))) {
+    if (name == std::string("magenta")) {
         return rgb(1.0, 0.0, 1.0);
     }
-    if ((name == std::string("gold"))) {
+    if (name == std::string("gold")) {
         return rgb(1.0, 0.843, 0.0);
     }
-    if ((name == std::string("teal"))) {
+    if (name == std::string("teal")) {
         return rgb(0.0, 0.502, 0.502);
     }
-    if ((name == std::string("steelblue"))) {
+    if (name == std::string("steelblue")) {
         return rgb(0.275, 0.510, 0.706);
     }
-    if ((name == std::string("crimson"))) {
+    if (name == std::string("crimson")) {
         return rgb(0.863, 0.078, 0.235);
     }
-    if ((name == std::string("forestgreen"))) {
+    if (name == std::string("forestgreen")) {
         return rgb(0.133, 0.545, 0.133);
     }
-    if ((name == std::string("darkorange"))) {
+    if (name == std::string("darkorange")) {
         return rgb(1.0, 0.549, 0.0);
     }
-    if ((name == std::string("royalblue"))) {
+    if (name == std::string("royalblue")) {
         return rgb(0.255, 0.412, 0.882);
     }
-    if ((name == std::string("tomato"))) {
+    if (name == std::string("tomato")) {
         return rgb(1.0, 0.388, 0.278);
     }
-    if ((name == std::string("slategray"))) {
+    if (name == std::string("slategray")) {
         return rgb(0.439, 0.502, 0.565);
     }
     return rgb(0.0, 0.0, 0.0);

@@ -52,9 +52,9 @@ inline std::ostream& operator<<(std::ostream& os_, const Scale& v_) {
 struct Axis {
     std::string label;
     Scale scale;
-    double lo;
-    double hi;
-    long long ticks;
+    double lo{};
+    double hi{};
+    long long ticks{};
     void cheatah_pretty_print(std::ostream& os_, long long indent_) const {
         os_ << "Axis(\n";
         os_ << std::string(indent_ + 4, ' ') << "label = ";
@@ -87,7 +87,7 @@ struct Subplot {
     Axis x;
     Axis y;
     std::vector<Series> series;
-    bool legend;
+    bool legend{};
 };
 
 /**
@@ -96,11 +96,11 @@ struct Subplot {
  */
 struct Figure {
     std::vector<Subplot> subplots;
-    long long rows;
-    long long cols;
-    long long cur;
-    long long width;
-    long long height;
+    long long rows{};
+    long long cols{};
+    long long cur{};
+    long long width{};
+    long long height{};
     std::vector<Color> palette;
 };
 
@@ -159,7 +159,7 @@ inline Scale log_scale() {
  * @endcode
  */
 inline Axis default_axis() {
-    return Axis{.label = static_cast<std::string>(std::string("")), .scale = static_cast<Scale>(linear()), .lo = static_cast<double>(math::nan), .hi = static_cast<double>(math::nan), .ticks = static_cast<long long>(6LL)};
+    return Axis{.label = static_cast<std::string>(std::string("")), .scale = static_cast<Scale>(linear()), .lo = static_cast<double>(math::nan), .hi = static_cast<double>(math::nan), .ticks = 6LL};
 }
 
 
@@ -186,11 +186,11 @@ inline Axis default_axis() {
  */
 inline Figure grid(builtins::Value auto&& rows, builtins::Value auto&& cols) {
     auto r = rows;
-    if ((r < 1LL)) {
+    if (r < 1LL) {
         r = 1LL;
     }
     auto c = cols;
-    if ((c < 1LL)) {
+    if (c < 1LL) {
         c = 1LL;
     }
     std::vector<Subplot> subs;
@@ -208,9 +208,9 @@ inline Figure grid(builtins::Value auto&& rows, builtins::Value auto&& cols) {
         .subplots = static_cast<std::vector<Subplot>>(subs),
         .rows = static_cast<long long>(r),
         .cols = static_cast<long long>(c),
-        .cur = static_cast<long long>(0LL),
-        .width = static_cast<long long>(900LL),
-        .height = static_cast<long long>(600LL),
+        .cur = 0LL,
+        .width = 900LL,
+        .height = 600LL,
         .palette = static_cast<std::vector<Color>>(plot::color::tab10())
     };
 }
@@ -261,17 +261,17 @@ inline Figure new_figure() {
 inline Figure subplot(builtins::Value auto&& f, builtins::Value auto&& r, builtins::Value auto&& c) {
     auto g = f;
     auto rr = r;
-    if ((rr < 0LL)) {
+    if (rr < 0LL) {
         rr = 0LL;
     }
-    if ((rr >= g.rows)) {
+    if (rr >= g.rows) {
         rr = (g.rows - 1LL);
     }
     auto cc = c;
-    if ((cc < 0LL)) {
+    if (cc < 0LL) {
         cc = 0LL;
     }
-    if ((cc >= g.cols)) {
+    if (cc >= g.cols) {
         cc = (g.cols - 1LL);
     }
     g.cur = ((rr * g.cols) + cc);
@@ -746,11 +746,11 @@ inline Figure legend(builtins::Value auto&& f, builtins::Value auto&& on) {
 inline Figure size(builtins::Value auto&& f, builtins::Value auto&& w, builtins::Value auto&& h) {
     auto g = f;
     auto ww = w;
-    if ((ww < 64LL)) {
+    if (ww < 64LL) {
         ww = 64LL;
     }
     auto hh = h;
-    if ((hh < 64LL)) {
+    if (hh < 64LL) {
         hh = 64LL;
     }
     g.width = ww;

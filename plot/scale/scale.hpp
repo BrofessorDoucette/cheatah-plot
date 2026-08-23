@@ -27,8 +27,8 @@ namespace ndarray = ::cheatah::ndarray;
  * A closed data interval [lo, hi] on one axis.
  */
 struct Range {
-    double lo;
-    double hi;
+    double lo{};
+    double hi{};
     void cheatah_pretty_print(std::ostream& os_, long long indent_) const {
         os_ << "Range(\n";
         os_ << std::string(indent_ + 4, ' ') << "lo = ";
@@ -63,21 +63,21 @@ inline std::ostream& operator<<(std::ostream& os_, const Range& v_) {
  */
 inline Range data_range(::cheatah::ndarray::basic_ndarray<double>& values) {
     auto n = ndarray::size_of(values);
-    if ((n == 0LL)) {
-        return Range{.lo = static_cast<double>(0.0), .hi = static_cast<double>(1.0)};
+    if (n == 0LL) {
+        return Range{.lo = 0.0, .hi = 1.0};
     }
     auto lo = builtins::index(values, 0LL);
     auto hi = builtins::index(values, 0LL);
     for (long long i = 1LL; i < n; ++i) {
         auto v = builtins::index(values, i);
-        if ((v < lo)) {
+        if (v < lo) {
             lo = v;
         }
-        if ((v > hi)) {
+        if (v > hi) {
             hi = v;
         }
     }
-    if ((hi <= lo)) {
+    if (hi <= lo) {
         return Range{.lo = static_cast<double>((lo - 0.5)), .hi = static_cast<double>((lo + 0.5))};
     }
     return Range{.lo = static_cast<double>(lo), .hi = static_cast<double>(hi)};
@@ -106,13 +106,13 @@ inline double nice_step(builtins::Value auto&& span, builtins::Value auto&& targ
     auto magnitude = math::pow(10.0, math::floor(math::log10(raw)));
     auto residual = builtins::truediv(raw, magnitude);
     auto nice = 10.0;
-    if ((residual < 1.5)) {
+    if (residual < 1.5) {
         nice = 1.0;
     } else {
-        if ((residual < 3.0)) {
+        if (residual < 3.0) {
             nice = 2.0;
         } else {
-            if ((residual < 7.0)) {
+            if (residual < 7.0) {
                 nice = 5.0;
             }
         }
@@ -139,7 +139,7 @@ inline double nice_step(builtins::Value auto&& span, builtins::Value auto&& targ
  */
 inline ::cheatah::ndarray::basic_ndarray<double> ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
     auto span = (r.hi - r.lo);
-    if ((span <= 0.0)) {
+    if (span <= 0.0) {
         auto single = ndarray::zeros(std::vector{1LL});
         single[0LL] = r.lo;
         return single;
@@ -149,14 +149,14 @@ inline ::cheatah::ndarray::basic_ndarray<double> ticks(builtins::Value auto&& r,
     auto guard = (r.hi + (step * 0.0001));
     auto count = 0LL;
     auto t = first;
-    while ((t <= guard)) {
+    while (t <= guard) {
         count += 1LL;
         t += step;
     }
     auto out = ndarray::zeros(std::vector{count});
     auto k = 0LL;
     t = first;
-    while ((k < count)) {
+    while (k < count) {
         out[k] = t;
         k += 1LL;
         t += step;
@@ -186,25 +186,25 @@ inline ::cheatah::ndarray::basic_ndarray<double> ticks(builtins::Value auto&& r,
  * @endcode
  */
 inline ::cheatah::ndarray::basic_ndarray<double> log_ticks(builtins::Value auto&& r, builtins::Value auto&& target) {
-    if ((r.lo <= 0.0)) {
+    if (r.lo <= 0.0) {
         return ticks(r, target);
     }
     auto span = (r.hi - r.lo);
-    if ((span <= 0.0)) {
+    if (span <= 0.0) {
         return ticks(r, target);
     }
     auto d_lo = builtins::to_int(math::ceil((math::log10(r.lo) - 0.0001)));
     auto d_hi = builtins::to_int(math::floor((math::log10(r.hi) + 0.0001)));
     auto decades = ((d_hi - d_lo) + 1LL);
-    if ((decades >= 2LL)) {
+    if (decades >= 2LL) {
         auto stride = 1LL;
-        if ((decades > target)) {
+        if (decades > target) {
             stride = builtins::floordiv(((decades + target) - 1LL), target);
         }
         auto count = builtins::floordiv(((decades + stride) - 1LL), stride);
         auto out = ndarray::zeros(std::vector{count});
         auto k = 0LL;
-        while ((k < count)) {
+        while (k < count) {
             out[k] = math::pow(10.0, builtins::to_float((d_lo + (k * stride))));
             k += 1LL;
         }
@@ -217,43 +217,43 @@ inline ::cheatah::ndarray::basic_ndarray<double> log_ticks(builtins::Value auto&
     auto count = 0LL;
     for (long long d = base_lo; d < (base_hi + 1LL); ++d) {
         auto decade = math::pow(10.0, builtins::to_float(d));
-        if ((decade >= guard_lo)) {
-            if ((decade <= guard_hi)) {
+        if (decade >= guard_lo) {
+            if (decade <= guard_hi) {
                 count += 1LL;
             }
         }
-        if (((2.0 * decade) >= guard_lo)) {
-            if (((2.0 * decade) <= guard_hi)) {
+        if ((2.0 * decade) >= guard_lo) {
+            if ((2.0 * decade) <= guard_hi) {
                 count += 1LL;
             }
         }
-        if (((5.0 * decade) >= guard_lo)) {
-            if (((5.0 * decade) <= guard_hi)) {
+        if ((5.0 * decade) >= guard_lo) {
+            if ((5.0 * decade) <= guard_hi) {
                 count += 1LL;
             }
         }
     }
-    if ((count == 0LL)) {
+    if (count == 0LL) {
         return ticks(r, target);
     }
     auto out = ndarray::zeros(std::vector{count});
     auto k = 0LL;
     for (long long d = base_lo; d < (base_hi + 1LL); ++d) {
         auto decade = math::pow(10.0, builtins::to_float(d));
-        if ((decade >= guard_lo)) {
-            if ((decade <= guard_hi)) {
+        if (decade >= guard_lo) {
+            if (decade <= guard_hi) {
                 out[k] = decade;
                 k += 1LL;
             }
         }
-        if (((2.0 * decade) >= guard_lo)) {
-            if (((2.0 * decade) <= guard_hi)) {
+        if ((2.0 * decade) >= guard_lo) {
+            if ((2.0 * decade) <= guard_hi) {
                 out[k] = (2.0 * decade);
                 k += 1LL;
             }
         }
-        if (((5.0 * decade) >= guard_lo)) {
-            if (((5.0 * decade) <= guard_hi)) {
+        if ((5.0 * decade) >= guard_lo) {
+            if ((5.0 * decade) <= guard_hi) {
                 out[k] = (5.0 * decade);
                 k += 1LL;
             }
@@ -285,7 +285,7 @@ inline ::cheatah::ndarray::basic_ndarray<double> log_ticks(builtins::Value auto&
  */
 inline double to_pixel(builtins::Value auto&& value, builtins::Value auto&& r, builtins::Value auto&& px_lo, builtins::Value auto&& px_hi) {
     auto span = (r.hi - r.lo);
-    if ((span <= 0.0)) {
+    if (span <= 0.0) {
         return px_lo;
     }
     return (px_lo + (builtins::truediv((value - r.lo), span) * (px_hi - px_lo)));
@@ -313,19 +313,19 @@ inline double to_pixel(builtins::Value auto&& value, builtins::Value auto&& r, b
  * @endcode
  */
 inline double to_pixel_log(builtins::Value auto&& value, builtins::Value auto&& r, builtins::Value auto&& px_lo, builtins::Value auto&& px_hi) {
-    if ((r.lo <= 0.0)) {
+    if (r.lo <= 0.0) {
         return to_pixel(value, r, px_lo, px_hi);
     }
-    if ((r.hi <= 0.0)) {
+    if (r.hi <= 0.0) {
         return to_pixel(value, r, px_lo, px_hi);
     }
-    if ((value <= 0.0)) {
+    if (value <= 0.0) {
         return to_pixel(value, r, px_lo, px_hi);
     }
     auto llo = math::log10(r.lo);
     auto lhi = math::log10(r.hi);
     auto span = (lhi - llo);
-    if ((span <= 0.0)) {
+    if (span <= 0.0) {
         return px_lo;
     }
     return (px_lo + (builtins::truediv((math::log10(value) - llo), span) * (px_hi - px_lo)));

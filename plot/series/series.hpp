@@ -40,12 +40,12 @@ struct Series {
     ::cheatah::ndarray::basic_ndarray<double> z;
     std::vector<long long> by;
     plot::color::Color color;
-    double width;
-    double size;
+    double width{};
+    double size{};
     ::cheatah::ndarray::basic_ndarray<double> dash;
     std::string marker;
     std::string label;
-    bool fill;
+    bool fill{};
 };
 
 /**
@@ -75,8 +75,8 @@ inline Series blank(builtins::Value auto&& kind) {
         .z = static_cast<::cheatah::ndarray::basic_ndarray<double>>(ndarray::zeros(std::vector{0LL})),
         .by = static_cast<std::vector<long long>>(empty_by),
         .color = static_cast<plot::color::Color>(plot::color::auto_color()),
-        .width = static_cast<double>(1.5),
-        .size = static_cast<double>(6.0),
+        .width = 1.5,
+        .size = 6.0,
         .dash = static_cast<::cheatah::ndarray::basic_ndarray<double>>(ndarray::zeros(std::vector{0LL})),
         .marker = static_cast<std::string>(std::string("")),
         .label = static_cast<std::string>(std::string("")),

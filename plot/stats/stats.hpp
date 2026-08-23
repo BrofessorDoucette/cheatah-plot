@@ -59,11 +59,11 @@ struct Hist {
  */
 inline Hist histogram(::cheatah::ndarray::basic_ndarray<double>& data, builtins::Value auto&& bins) {
     auto b = bins;
-    if ((b < 1LL)) {
+    if (b < 1LL) {
         b = 1LL;
     }
     auto r = plot::scale::data_range(data);
-    if ((r.lo != r.lo)) {
+    if (r.lo != r.lo) {
         r = plot::scale::Range({.lo = 0.0, .hi = 1.0});
     }
     auto step = builtins::truediv((r.hi - r.lo), builtins::to_float(b));
@@ -79,12 +79,12 @@ inline Hist histogram(::cheatah::ndarray::basic_ndarray<double>& data, builtins:
     auto n = ndarray::size_of(data);
     for (long long i = 0; i < n; ++i) {
         auto v = builtins::index(data, i);
-        if ((v == v)) {
+        if (v == v) {
             auto k = builtins::to_int(math::floor(builtins::truediv((v - r.lo), step)));
-            if ((k < 0LL)) {
+            if (k < 0LL) {
                 k = 0LL;
             }
-            if ((k >= b)) {
+            if (k >= b) {
                 k = (b - 1LL);
             }
             counts[k] = (builtins::index(counts, k) + 1.0);
@@ -119,7 +119,7 @@ inline Hist histogram(::cheatah::ndarray::basic_ndarray<double>& data, builtins:
  */
 inline ::cheatah::ndarray::basic_ndarray<double> fit(::cheatah::ndarray::basic_ndarray<double>& x, ::cheatah::ndarray::basic_ndarray<double>& y) {
     auto n = ndarray::size_of(x);
-    if ((n < 2LL)) {
+    if (n < 2LL) {
         return y;
     }
     auto flat = ndarray::zeros(std::vector{(2LL * n)});
@@ -157,7 +157,7 @@ inline ::cheatah::ndarray::basic_ndarray<double> fit(::cheatah::ndarray::basic_n
  */
 inline double sem(::cheatah::ndarray::basic_ndarray<double>& data) {
     auto n = ndarray::size_of(data);
-    if ((n < 2LL)) {
+    if (n < 2LL) {
         return 0.0;
     }
     std::vector<double> xs;
