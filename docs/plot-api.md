@@ -55,14 +55,32 @@ fig, ax = plt.subplots(); ax.plot(x, y, color='r', marker='o'); ax.set_xlabel('t
 | **Figure vs Axes vs Axis** name collision (Axes is *singular*, holds two Axis) | **Clear vocabulary** (below): Figure → Subplot → Series; an axis is just `subplot.x` / `subplot.y`. |
 | **Requires a DataFrame** (pandas) | **ndarray columns only.** No pandas, ever — group/color-by is a label array, stats come from the stdlib. |
 
-## Faster & safer than what exists — the thesis
+## Faster & safer than what exists — the design goal
 
-The north star: **faster and safer than any plotting library that exists.** Both fall out of leaning on
-the cheatah libraries (`ndarray`, `linalg`, `statistics`) and the cheatah-gpu borrow model to their full
-advantage, rather than reinventing them.
+The north star: **faster and safer than any plotting library that exists.**
 
-**Faster** — the whole pipeline is `ndarray` + `linalg` + the GPU borrow model, so nothing walks
-per-point:
+> **This is a stated goal, not a measured result.** `cheatah-plot` has a benchmark
+> (`bench/plot_bench.cpp` — figure reduce, prim binning, raster fill rate, PNG encode, full
+> pipeline) but it measures **only cheatah**: there is no matplotlib, plotly, or any other
+> plotting library wired into a comparison, so nothing here has been raced against anything.
+> The argument below is **architectural** — reasons to expect an advantage — and it should be
+> read that way until a paired benchmark exists.
+>
+> <!-- cheatah-bench-stamp v1
+>      suite:        plot-vs-other-libraries
+>      host:         n/a
+>      competitors:  NONE WIRED UP
+>      statistic:    n/a
+>      publishable:  NOT-MEASURED
+>      note:         Turning this into a claim means a harness that renders the SAME figure
+>                    in cheatah-plot and in matplotlib, striated (both timed inside each
+>                    round), reporting the median of per-round paired ratios — the shape
+>                    scripts/app_compare.purr uses in the cheatah repo. Until then the
+>                    wording here stays "goal", not "is".
+> -->
+
+**Why we expect it to be faster** — the whole pipeline is `ndarray` + `linalg` + the GPU borrow
+model, so nothing walks per-point:
 - data→pixel is one `linalg` affine over a series' `ndarray<Vec2>` (vectorised), never a per-point loop;
 - a million-point series is a single `ndarray<Vertex>` the GPU **borrows** (one lease, zero copy) and
   draws in one call;
@@ -79,7 +97,9 @@ per-point:
 - **no-copy borrow ownership** — the GPU never takes your array; a lease pins it and forbids
   mutate/free/move while in use, so the CPU↔GPU seam can't race or dangle.
 
-Matplotlib and plotly are neither at once: interpreted, dict/stringly-typed, globally stateful, copy-happy.
+Matplotlib and plotly are neither at once: interpreted, dict/stringly-typed, globally stateful,
+copy-happy. That is an argument from architecture — accurate about how those libraries are built,
+and still not a substitute for timing them side by side, which we have not done.
 
 ## The one object model (and its vocabulary)
 
