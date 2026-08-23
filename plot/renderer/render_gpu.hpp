@@ -137,10 +137,10 @@ inline bool try_gpu(const std::vector<Prim>& prims, const TileBins& bins,
         return true;
     } catch (const std::exception& e) {
         gpu_failed = true;            // the one-time notice — later renders skip the lane
-        std::fprintf(stderr,
+        static_cast<void>(std::fprintf(stderr,
                      "cheatah-plot: GPU raster failed (%s) — falling back to the CPU "
                      "reference rasterizer\n",
-                     e.what());
+                     e.what()));  // diagnostic only
         return false;
     }
 }

@@ -37,7 +37,7 @@ inline constexpr std::uint32_t kGrid = 0xFFE0E0E0u;
 inline std::string fmt_tick(double v) {
     if (std::abs(v) < 1e-12) v = 0.0;
     char buf[32];
-    std::snprintf(buf, sizeof(buf), "%.6g", v);
+    static_cast<void>(std::snprintf(buf, sizeof(buf), "%.6g", v));  // %.6g of a double always fits 32 bytes
     return std::string(buf);
 }
 
