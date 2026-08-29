@@ -31,12 +31,13 @@ PROF="-instr-profile=$B/merged.profdata"
 # The generated, host-testable plot surface. git's '*' spans '/', so this matches plot/plot.hpp and the
 # submodule headers alike. `--cached --others --exclude-standard` also lists not-yet-committed headers
 # (this repo is authored ahead of its first commit) while still honouring .gitignore.
-# The device-lane pair (gpu_context bring-up + the render_gpu orchestration/fallback latch)
-# is excluded exactly the way cheatah-gpu-linalg excludes ITS two backend contexts from the
-# host gate: those paths need real driver matrices, and the dedicated GpuRaster tests hold
-# them to the reference rasterizer (bit-exact emulated lane, tolerance-checked Vulkan lane).
+# The device-lane pair (the gpu_lane stand-ins + kernel naming, and the render_gpu
+# orchestration/fallback latch) is excluded exactly the way cheatah-gpu-linalg excludes ITS two
+# backend contexts from the host gate: those paths need real driver matrices, and the dedicated
+# GpuRaster tests hold them to the reference rasterizer (bit-exact emulated lane in its own
+# binary, tolerance-checked Vulkan lane).
 SRCS=$(git ls-files --cached --others --exclude-standard 'plot/*.hpp' | grep -v '/tests/' \
-       | grep -vE 'renderer/gpu_context\.hpp|renderer/render_gpu\.hpp')
+       | grep -vE 'renderer/gpu_lane\.hpp|renderer/render_gpu\.hpp')
 
 case "${1:-report}" in
     show)  llvm-cov show   "${OBJS[@]}" $PROF "${2:?usage: coverage.sh show <file>}" 2>/dev/null \

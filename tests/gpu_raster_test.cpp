@@ -1,8 +1,14 @@
 // GPU-lane tests: the emulated-Metal stand-in path must be BYTE-IDENTICAL to raster_cpu (it is
-// the same code, dispatched through the real Metal call sequence), the Vulkan lane must match
-// within a tight per-channel tolerance (slangc-compiled float ops differ only in ULP noise
-// inside the AA feather), and the public render() must honor the CHEATAH_PLOT_FORCE_CPU pin.
-// Built with or without the lanes: without them the GPU cases skip and the pin case still runs.
+// the same code, dispatched through the real Metal call sequence), a compiled-kernel lane
+// (Vulkan; Metal on Apple) must match within a tight per-channel tolerance (slangc-compiled
+// float ops differ only in ULP noise inside the AA feather), and the public render() must honor
+// the CHEATAH_PLOT_FORCE_CPU pin. Built with or without a lane: without one the GPU cases skip
+// and the pin case still runs.
+//
+// cheatah-gpu-linalg's context is ONE lane per translation unit (its backend is a compile-time
+// switch), so this file is built twice on a Linux host — into cheatah_plot_tests on the default
+// (Vulkan) lane and into cheatah_plot_metal_tests on the emulated-Metal lane — and each binary
+// runs the case that is its lane's. The lane rule below is context.hpp's own.
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -15,6 +21,21 @@
 #include "plot/plot.hpp"
 #include "plot/renderer/raster_cpu.hpp"
 #include "plot/renderer/render.hpp"
+
+#if defined(CHEATAH_PLOT_GPU)
+#if defined(CHEATAH_GPU_LINALG_VULKAN) || defined(CHEATAH_GPU_BACKEND_VULKAN)
+#define PLOT_TEST_LANE_VULKAN 1
+#elif defined(CHEATAH_GPU_LINALG_METAL) || defined(CHEATAH_GPU_BACKEND_METAL) || defined(__APPLE__)
+#define PLOT_TEST_LANE_METAL 1
+#else
+#define PLOT_TEST_LANE_VULKAN 1
+#endif
+#endif
+
+// The lanes that run slangc-compiled kernels (as opposed to the stand-ins).
+#if defined(PLOT_TEST_LANE_VULKAN) || (defined(PLOT_TEST_LANE_METAL) && defined(__APPLE__))
+#define PLOT_TEST_LANE_COMPILED 1
+#endif
 
 namespace fg = cheatah::plot::figure;
 namespace rr = cheatah::plot::renderer;
@@ -48,14 +69,29 @@ std::vector<std::uint32_t> reference_raster(const rr::DrawList& dl, const rr::Ti
 
 }  // namespace
 
+TEST(GpuRaster, KernelsAreNamedByTheirDirectory) {
+#if defined(CHEATAH_PLOT_GPU)
+    // The context serves the linalg kernels too; ours reach it directory-qualified, so the
+    // name it resolves is exactly <shader_dir>/<entry> and never a bare basename that could
+    // shadow (or be shadowed by) a same-named linalg kernel.
+    const std::string q = rr::detail::qualified(rr::kRasterKernel);
+    const std::string& dir = rr::detail::shader_dir();
+    ASSERT_FALSE(dir.empty()) << "the GPU build must bake CHEATAH_PLOT_SHADER_DIR";
+    EXPECT_EQ(q, dir + "/plot_raster");
+    EXPECT_NE(q.find('/'), std::string::npos);
+#else
+    GTEST_SKIP() << "built without a GPU lane";
+#endif
+}
+
 TEST(GpuRaster, EmulatedLaneBitExact) {
-#if defined(CHEATAH_PLOT_GPU_METAL)
+#if defined(PLOT_TEST_LANE_METAL) && !defined(__APPLE__)
     const std::uint32_t w = 130, h = 97;   // ragged against the 16px tile grid on both axes
     rr::DrawList dl = representative_scene(w, h);
     rr::TileBins bins = rr::bin_prims(dl, w, h);
     rr::RasterParams params{w, h, bins.tiles_x, 0xFFFFFFFFu};
 
-    auto& ctx = rr::detail::ctx_of<rr::detail::MetalContext>();
+    auto& ctx = rr::detail::lane();
     ASSERT_TRUE(ctx.ok()) << "the (emulated) Metal device did not come up";
     std::vector<std::uint32_t> gpu = rr::raster_gpu(ctx, dl, bins, params);
     std::vector<std::uint32_t> cpu = reference_raster(dl, bins, params);
@@ -69,31 +105,31 @@ TEST(GpuRaster, EmulatedLaneBitExact) {
         << (first_diff / w) << "): gpu=0x" << std::hex << gpu[first_diff] << " cpu=0x"
         << cpu[first_diff];
 #else
-    GTEST_SKIP() << "built without the Metal lane";
+    GTEST_SKIP() << "this binary's lane is not the emulated Metal device";
 #endif
 }
 
-TEST(GpuRaster, VulkanLaneMatchesWithinTolerance) {
-#if defined(CHEATAH_PLOT_GPU_VULKAN)
-    if (!rr::gpu_available()) GTEST_SKIP() << "no Vulkan device on this machine";
+TEST(GpuRaster, CompiledLaneMatchesWithinTolerance) {
+#if defined(PLOT_TEST_LANE_COMPILED)
+    if (!rr::gl::available())
+        GTEST_SKIP() << "gpu lane skipped: " << rr::gl::unavailable_reason();
     // The kernels must be on disk where the context will look (env overrides the baked dir).
-    const char* env = std::getenv("CHEATAH_PLOT_SPV_DIR");
-#if defined(CHEATAH_PLOT_SPV_DIR)
-    const std::string spv_dir = env ? env : CHEATAH_PLOT_SPV_DIR;
+#if defined(PLOT_TEST_LANE_VULKAN)
+    const char* ext = ".spv";
 #else
-    const std::string spv_dir = env ? env : "";
+    const char* ext = ".metal";
 #endif
-    if (spv_dir.empty() || !std::ifstream(spv_dir + "/plot_raster.spv").good())
-        GTEST_SKIP() << "no compiled SPIR-V under '" << spv_dir << "'";
+    const std::string& shader_dir = rr::detail::shader_dir();
+    if (shader_dir.empty() ||
+        !std::ifstream(rr::detail::qualified(rr::kRasterKernel) + ext).good())
+        GTEST_SKIP() << "no compiled kernels under '" << shader_dir << "'";
 
     const std::uint32_t w = 130, h = 97;
     rr::DrawList dl = representative_scene(w, h);
     rr::TileBins bins = rr::bin_prims(dl, w, h);
     rr::RasterParams params{w, h, bins.tiles_x, 0xFFFFFFFFu};
 
-    auto& ctx = rr::detail::ctx_of<rr::detail::VulkanContext>();
-    std::cout << "[ vulkan ] device: " << ctx.device_name() << "\n";
-    std::vector<std::uint32_t> gpu = rr::raster_gpu(ctx, dl, bins, params);
+    std::vector<std::uint32_t> gpu = rr::raster_gpu(rr::detail::lane(), dl, bins, params);
     std::vector<std::uint32_t> cpu = reference_raster(dl, bins, params);
 
     ASSERT_EQ(gpu.size(), cpu.size());
@@ -116,7 +152,7 @@ TEST(GpuRaster, VulkanLaneMatchesWithinTolerance) {
                            << " pixels within |delta| <= 2 per channel (worst delta " << worst
                            << ")";
 #else
-    GTEST_SKIP() << "built without the Vulkan lane";
+    GTEST_SKIP() << "this binary's lane runs no compiled kernels";
 #endif
 }
 
@@ -145,10 +181,10 @@ TEST(GpuRaster, RenderPrefersGpuAndFallsBack) {
     }
     EXPECT_EQ(byte_diffs, 0u) << "CHEATAH_PLOT_FORCE_CPU=1 must pin the exact CPU bytes";
 
-#if defined(CHEATAH_PLOT_GPU_VULKAN) || defined(CHEATAH_PLOT_GPU_METAL)
+#if defined(CHEATAH_PLOT_GPU)
     // And un-pinned, a live lane is PREFERRED: render() must produce the same frame as the
     // explicit GPU path (both hit the same deterministic lane).
-    if (rr::gpu_available()) {
+    if (rr::gl::available()) {
         try {
             rr::Image via_gpu = rr::render_gpu(f);
             rr::Image unpinned = rr::render(f);

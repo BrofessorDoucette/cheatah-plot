@@ -147,11 +147,11 @@ else
     # not ours to fix.
     CHEATAH_PLOT_FORCE_CPU=1 \
     UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ASAN_OPTIONS="detect_leaks=1:abort_on_error=1" \
-        ctest --preset asan --output-on-failure --exclude-regex '^qa_gate$|^GpuRaster' \
+        ctest --preset asan --output-on-failure --exclude-regex '^qa_gate$|GpuRaster' \
         || fail "sanitizer (ASan/UBSan) tests"
     bold "Running the GPU-lane tests under ASan + UBSan (driver leak-check exception)…"
     UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ASAN_OPTIONS="detect_leaks=0:abort_on_error=1" \
-        ctest --preset asan --output-on-failure --tests-regex '^GpuRaster' \
+        ctest --preset asan --output-on-failure --tests-regex 'GpuRaster' \
         || fail "sanitizer (GPU lane) tests"
 fi
 

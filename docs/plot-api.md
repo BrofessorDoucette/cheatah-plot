@@ -490,10 +490,10 @@ to build, test, and document it.
 
 ## The render seam — the renderer's actual design (next layer)
 
-cheatah-gpu deliberately offers no high-level convenience layer — consumers own their
-orchestration on its raw, 1:1 forwarders (`vk.*` / `mtl.*`) and `gpu.dispatch` math. So the
-renderer is **cheatah-plot's own layer**, the same way cheatah-gpu-linalg owns its compute
-stack, and it is a *compute* rasterizer — no graphics pipeline, no swapchain:
+The renderer dispatches on **cheatah-gpu-linalg's device context** — the one compute layer the
+cheatah stdlib extensions share — so it owns no context of its own; it owns its kernels, their
+CPU stand-ins, and the orchestration around them. It is a *compute* rasterizer — no graphics
+pipeline, no swapchain:
 
 1. **reduce**: `Figure` → layout (via `plot.scale` ticks + limits) → a flat primitive list in
    paint order. Bulk coordinate transforms are ndarray elementwise ops (reused, not hand-rolled

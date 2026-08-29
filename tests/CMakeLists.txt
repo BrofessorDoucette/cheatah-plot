@@ -82,27 +82,56 @@ target_link_libraries(cheatah_plot_tests PRIVATE
     GTest::gtest_main
 )
 
-# The GPU lanes, when the top-level configure enabled them: the lane defines + device stacks ride
-# the one interface target, and the kernels must be compiled before the binary runs them. Without
-# the target the same test file builds CPU-only (its GPU cases skip).
+# The GPU lane, when the top-level configure enabled it: the platform-default lane's defines +
+# device stack ride the one interface target, and the kernels must be compiled before the binary
+# runs them. Without the target the same test file builds CPU-only (its GPU cases skip).
 if(TARGET cheatah_plot_gpu)
     target_link_libraries(cheatah_plot_tests PRIVATE cheatah_plot_gpu)
     add_dependencies(cheatah_plot_tests cheatah_plot_shaders)
 endif()
 
+# The emulated-Metal lane is a SECOND binary of the one GPU test file: cheatah-gpu-linalg's
+# context is one lane per translation unit (its backend is a compile-time switch), so the
+# bit-exact stand-in lane cannot share a TU with the default lane. Same test, same stdlib, other
+# lane; its cases are registered under a `metal.` prefix so ctest can tell the two apart.
+if(TARGET cheatah_plot_gpu_metal)
+    add_executable(cheatah_plot_metal_tests gpu_raster_test.cpp)
+    target_include_directories(cheatah_plot_metal_tests PRIVATE ${_cheatah_stdlib}/ndarray)
+    target_link_libraries(cheatah_plot_metal_tests PRIVATE
+        cheatah::plot
+        cheatah_math
+        cheatah_statistics
+        cheatah_linalg
+        GTest::gtest_main
+        cheatah_plot_gpu_metal
+    )
+    add_dependencies(cheatah_plot_metal_tests cheatah_plot_shaders)
+endif()
+
 # Optional ASan + UBSan (the `asan` preset turns this on). Sanitize the stdlib we compiled too, so the
 # whole binary is instrumented consistently. Valgrind runs the plain debug build.
 if(CHEATAH_PLOT_SANITIZE)
-    foreach(_t cheatah_plot_tests cheatah_builtins cheatah_math cheatah_statistics cheatah_linalg)
+    set(_sanitized cheatah_plot_tests cheatah_builtins cheatah_math cheatah_statistics cheatah_linalg)
+    if(TARGET cheatah_plot_metal_tests)
+        list(APPEND _sanitized cheatah_plot_metal_tests)
+    endif()
+    foreach(_t IN LISTS _sanitized)
         target_compile_options(${_t} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     endforeach()
-    target_link_options(cheatah_plot_tests PRIVATE -fsanitize=address,undefined)
-    if(TARGET cheatah_plot_gpu)
-        # metal-cpp deliberately calls objc_msgSend through a typed function-pointer cast — its
-        # documented mechanism — so the `function` UBSan check is off on the GPU-enabled binary,
-        # matching cheatah-gpu's own sanitizer gate.
-        target_compile_options(cheatah_plot_tests PRIVATE -fno-sanitize=function)
-    endif()
+    foreach(_t cheatah_plot_tests cheatah_plot_metal_tests)
+        if(TARGET ${_t})
+            target_link_options(${_t} PRIVATE -fsanitize=address,undefined)
+            if(TARGET cheatah_plot_gpu)
+                # metal-cpp deliberately calls objc_msgSend through a typed function-pointer cast
+                # — its documented mechanism — so the `function` UBSan check is off on the
+                # GPU-enabled binaries, matching cheatah-gpu-linalg's own sanitizer gate.
+                target_compile_options(${_t} PRIVATE -fno-sanitize=function)
+            endif()
+        endif()
+    endforeach()
 endif()
 
 gtest_discover_tests(cheatah_plot_tests)
+if(TARGET cheatah_plot_metal_tests)
+    gtest_discover_tests(cheatah_plot_metal_tests TEST_PREFIX metal.)
+endif()

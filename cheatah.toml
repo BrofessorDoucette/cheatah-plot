@@ -13,12 +13,13 @@ name = "cheatah-plot"
 # Toolchain version this extension targets (git tag of the cheatah repo). Bump deliberately.
 version = "1.11.4-alpha"
 
-# The renderer dispatches through cheatah-gpu (raw vk.*/mtl.* forwarders + gpu.dispatch math),
-# and device-resident array math rides cheatah-gpu-linalg's linalg overloads. biome fetches
-# these extensions alongside cheatah-plot.
+# The renderer dispatches through cheatah-gpu-linalg's device context (which stands on
+# cheatah-gpu's raw vk.*/mtl.* forwarders), and device-resident array math rides its linalg
+# overloads. Kernels are handed to the context by qualified name — the 0.4.5 contract. biome
+# fetches these extensions alongside cheatah-plot.
 [dependencies]
 cheatah-gpu = ">=0.5.0"
-cheatah-gpu-linalg = ">=0.4.0"
+cheatah-gpu-linalg = ">=0.4.5"
 
 # [system-dependencies] — the userspace stack a machine needs to build + run cheatah-plot's GPU
 # path. On Linux that is Vulkan (loader/layers, via cheatah-gpu); on macOS it is Apple's NATIVE

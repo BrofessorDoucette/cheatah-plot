@@ -12,17 +12,18 @@ Metal, Linux/macOS today. A small, sharp renderer, not a graphics engine. Public
 installed as a cheatah extension via `biome add cheatah-plot`. Headless first: `plot.window`
 (presentation) is a later layer, and nothing in the core depends on it.
 
-## The layer contract: pure model → own renderer on cheatah-gpu
+## The layer contract: pure model → renderer on cheatah-gpu-linalg's context
 
 - **Model layers** (`plot.scale`, `plot.color`, `plot.series`, `plot.stats`, `plot.figure`) are
   pure cheatah on `ndarray` — no device, fully unit-testable, 100% covered. A Figure is plain
   data; fluent free functions return modified copies (cheatah values are const).
-- **The renderer is cheatah-plot's OWN layer**, built directly on cheatah-gpu's raw, 1:1
-  forwarders (`vk.*` / `mtl.*`) plus its `gpu.dispatch` workgroup math. cheatah-gpu deliberately
-  offers no high-level convenience layer — consumers own their orchestration — so cheatah-plot
-  owns its context bring-up, buffers, and dispatch, exactly the way cheatah-gpu-linalg owns
-  its compute stack. Backend choice follows cheatah-gpu's platform default (Metal on Apple,
-  Vulkan elsewhere); cheatah-plot carries no per-backend code outside its two context shims.
+- **The renderer dispatches on cheatah-gpu-linalg's device context** — the one small compute
+  layer the cheatah stdlib extensions share (linear algebra, plotting). cheatah-plot owns no
+  context, no buffer pool and no per-backend code: it owns its two kernels (`plot_clear` /
+  `plot_raster`, handed to the context by directory-qualified name so they never collide with
+  the linalg kernels the same context serves), the emulated-Metal stand-ins that make the
+  software lane bit-exact with `raster_cpu`, and the upload → dispatch → download orchestration.
+  Backend choice is the context's platform default (Metal on Apple, Vulkan elsewhere).
 - **Reuse before writing** (the house rule): anything that is linear algebra goes through the
   stdlib `linalg` — and when arrays are device-resident, cheatah-gpu-linalg's `DeviceArray`
   overloads take over by ADL. `plot.stats` fits with `linalg.lstsq` and measures spreads with
@@ -65,7 +66,7 @@ plain `<img>` tag renders live (roadmap; `plot.stream`).
 The model layers are authored in **cheatah** and compiled to the shipped headers with
 `purrc --emit-library` (kept in sync by `scripts/gen-headers.sh`; the generated `plot/**/*.hpp`
 + `.sha512` sidecars are the biome artifact). C++ appears only where the renderer meets the
-device (context shims, kernels' CPU stand-ins) — the same split cheatah-gpu-linalg uses.
+device (the kernels' CPU stand-ins, the dispatch orchestration) — the same split cheatah-gpu-linalg uses.
 
 ## Concurrency & memory ownership
 

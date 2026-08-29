@@ -1,10 +1,11 @@
 # cheatah-plot — cross-platform GPU plotting for cheatah.
 #
-# Draw a plot in a few lines, on whatever GPU you have. cheatah-plot renders through cheatah-gpu's easy,
-# cross-platform `gpu` layer (which composes the 1:1 gpu.vulkan / gpu.metal surfaces) and presents to a
-# GLFW window OR to an offscreen framebuffer you can read back (for streaming a live plot — e.g. to a
-# website, without JavaScript). The library + its renderer are authored in cheatah (.purr) as much as
-# possible; only a thin C++ shim binds the windowing library.
+# Draw a plot in a few lines, on whatever GPU you have. cheatah-plot rasterizes through
+# cheatah-gpu-linalg's device context — the one compute layer the cheatah stdlib extensions share
+# (Metal on Apple, Vulkan elsewhere) — and presents to a GLFW window OR to an offscreen framebuffer
+# you can read back (for streaming a live plot — e.g. to a website, without JavaScript). The library
+# + its renderer are authored in cheatah (.purr) as much as possible; C++ appears only where the
+# renderer meets the device.
 #
 # The `plot` package is surfaced as generated, header-only C++20 (from the `.purr` sources via
 # `purrc --emit-library`, kept in sync by scripts/gen-headers.sh) in the `cheatah::plot::*` namespaces.
@@ -47,23 +48,28 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git" OR EXISTS "${CMAKE_CURRENT_SOURCE_D
     message(STATUS "cheatah-plot: git pre-push hook -> scripts/qa_gate.sh")
 endif()
 
-# Sibling checkouts the qa_gate needs: the cheatah toolchain (purrc + cheatah runtime) and cheatah-gpu
-# (the easy `gpu` layer cheatah-plot renders through). Override either to relocate it.
-set(CHEATAH_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/../cheatah"     CACHE PATH "cheatah toolchain checkout")
-set(CHEATAH_GPU_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cheatah-gpu" CACHE PATH "cheatah-gpu extension checkout")
+# Sibling checkouts the qa_gate needs: the cheatah toolchain (purrc + cheatah runtime), cheatah-gpu
+# (the raw device surfaces + the software-emulated Metal device) and cheatah-gpu-linalg (the compute
+# context the renderer dispatches on). Override any of them to relocate it.
+set(CHEATAH_DIR            "${CMAKE_CURRENT_SOURCE_DIR}/../cheatah"            CACHE PATH "cheatah toolchain checkout")
+set(CHEATAH_GPU_DIR        "${CMAKE_CURRENT_SOURCE_DIR}/../cheatah-gpu"        CACHE PATH "cheatah-gpu extension checkout")
+set(CHEATAH_GPU_LINALG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cheatah-gpu-linalg" CACHE PATH "cheatah-gpu-linalg checkout (configured: it must have build/consumer.cmake)")
 
 # --- Options -----------------------------------------------------------------------------------
 option(CHEATAH_PLOT_BUILD_TESTS  "Build the C++ unit tests (fetches GoogleTest)" OFF)
 option(CHEATAH_PLOT_SANITIZE     "Build the unit tests with ASan + UBSan" OFF)
 option(CHEATAH_PLOT_BUILD_VULKAN "Build the window/present tests (need GLFW + a GPU)" OFF)
 
-# --- GPU lanes: the Slang kernels compiled per backend + the device stacks ----------------------
-# The renderer's GPU path is OPTIONAL. With slangc (ships in the Vulkan SDK) and a cheatah-gpu
-# checkout, shaders/plot.slang is compiled at build time — one SPIR-V module per entry point for
-# the Vulkan lane, and the Metal source per entry on EVERY platform (so a broken metal target
-# fails here, not on the first Apple machine) — and the `cheatah_plot_gpu` INTERFACE target
-# carries the enabled lanes' includes/defines/sources for the one test binary. Without slangc
-# (or without cheatah-gpu) the GPU lane is disabled cleanly: the CPU tests still build and run.
+# --- GPU lanes: the Slang kernels compiled per backend + the device context ---------------------
+# The renderer's GPU path is OPTIONAL. It dispatches on cheatah-gpu-linalg's device context, so it
+# needs that sibling CONFIGURED (its build/consumer.cmake names the default lane's includes, the
+# volk archive and the lane's shader flags — nothing here names a backend) plus slangc (ships in
+# the Vulkan SDK) to compile shaders/plot.slang: one SPIR-V module per entry point for the Vulkan
+# lane, and the Metal source per entry on EVERY platform (so a broken metal target fails here, not
+# on the first Apple machine). `cheatah_plot_gpu` carries the platform-default lane — Metal on
+# Apple, Vulkan elsewhere, the context's own rule; off Apple `cheatah_plot_gpu_metal` additionally
+# carries the emulated-Metal lane, whose C++ stand-ins are bit-exact with raster_cpu by
+# construction. Without any of it the GPU path is off cleanly: the CPU tests still build and run.
 set(CHEATAH_PLOT_GPU_LANES "")
 
 # The Vulkan SDK: $VULKAN_SDK (the SDK's setup-env.sh) wins; otherwise the newest
@@ -81,9 +87,10 @@ find_program(CHEATAH_PLOT_SLANGC slangc
     HINTS "${CHEATAH_PLOT_VK_ROOT}/bin"
     DOC "Slang compiler (ships in the Vulkan SDK)")
 
-if(CHEATAH_PLOT_SLANGC AND EXISTS "${CHEATAH_GPU_DIR}/gpu/dispatch/dispatch.hpp")
+if(CHEATAH_PLOT_SLANGC AND EXISTS "${CHEATAH_GPU_LINALG_DIR}/build/consumer.cmake")
     # -- Compile the kernels: "entry|guard" per row; the guard keeps each compiled module to
-    #    exactly one entry point and its own bindings.
+    #    exactly one entry point and its own bindings. Both backends' outputs land in ONE
+    #    directory, the one the renderer qualifies its kernel names with.
     set(_shader_dir "${CMAKE_BINARY_DIR}/shaders")
     file(MAKE_DIRECTORY "${_shader_dir}")
     set(_slang_src "${CMAKE_CURRENT_SOURCE_DIR}/shaders/plot.slang")
@@ -114,89 +121,64 @@ if(CHEATAH_PLOT_SLANGC AND EXISTS "${CHEATAH_GPU_DIR}/gpu/dispatch/dispatch.hpp"
     endforeach()
     add_custom_target(cheatah_plot_shaders ALL DEPENDS ${_shader_outputs})
 
+    # -- The default lane: whatever cheatah-gpu-linalg configured for this platform. Its
+    #    consumer.cmake is the ONE description of how a sibling consumes that build.
+    include("${CHEATAH_GPU_LINALG_DIR}/build/consumer.cmake")
     add_library(cheatah_plot_gpu INTERFACE)
-    target_include_directories(cheatah_plot_gpu INTERFACE ${CHEATAH_GPU_DIR})
-
-    # metal-cpp: Apple's MIT-licensed header-only C++ interface to Metal, vendored inside
-    # cheatah-gpu (override with -DCHEATAH_PLOT_METAL_CPP or the CHEATAH_GPU_METAL_CPP env var).
-    if(DEFINED ENV{CHEATAH_GPU_METAL_CPP})
-        set(CHEATAH_PLOT_METAL_CPP "$ENV{CHEATAH_GPU_METAL_CPP}" CACHE PATH "metal-cpp headers")
-    else()
-        set(CHEATAH_PLOT_METAL_CPP "${CHEATAH_GPU_DIR}/third_party/metal-cpp" CACHE PATH "metal-cpp headers")
-    endif()
-
+    target_link_libraries(cheatah_plot_gpu INTERFACE cheatah_gpu_linalg::consumer)
+    target_compile_definitions(cheatah_plot_gpu INTERFACE
+        CHEATAH_PLOT_GPU=1
+        CHEATAH_PLOT_SHADER_DIR="${_shader_dir}")
     if(APPLE)
         # METAL is the mac lane: the real frameworks compile the slang-generated MSL at runtime.
-        target_include_directories(cheatah_plot_gpu INTERFACE ${CHEATAH_PLOT_METAL_CPP})
+        # metal-cpp's documented calling convention needs blocks; cmath first keeps its math
+        # macros out of the way (the same options cheatah-gpu-linalg's Metal lane uses).
         target_compile_definitions(cheatah_plot_gpu INTERFACE
-            CHEATAH_PLOT_GPU_METAL=1
-            CHEATAH_PLOT_MSL_DIR="${_shader_dir}")
-        target_link_libraries(cheatah_plot_gpu INTERFACE
-            "-framework Metal" "-framework Foundation" "-framework QuartzCore")
+            CHEATAH_GPU_LINALG_MSL_DIR="${CHEATAH_GPU_LINALG_CONSUMER_SHADERS}")
+        target_compile_options(cheatah_plot_gpu INTERFACE -fblocks -include cmath)
         list(APPEND CHEATAH_PLOT_GPU_LANES metal)
     else()
-        # VULKAN lane: cheatah-gpu's vk.* forwarders over volk (preferred — the loader is
-        # dlopen'd at runtime, no libvulkan DT_NEEDED) or the SDK headers + -lvulkan when no
-        # volk source is around. Kernels load from the .spv directory baked in here (the
-        # CHEATAH_PLOT_SPV_DIR environment variable overrides at runtime).
-        file(GLOB _volk_candidates "${CHEATAH_GPU_DIR}/build/*/_deps/volk-src")
-        list(SORT _volk_candidates)
-        list(POP_BACK _volk_candidates _volk_default)
-        set(CHEATAH_PLOT_VOLK_SRC "${_volk_default}" CACHE PATH "volk checkout (volk.h + volk.c)")
-        if(EXISTS "${CHEATAH_PLOT_VOLK_SRC}/volk.c" OR CHEATAH_PLOT_VK_ROOT)
-            target_compile_definitions(cheatah_plot_gpu INTERFACE
-                CHEATAH_PLOT_GPU_VULKAN=1
-                CHEATAH_PLOT_SPV_DIR="${_shader_dir}")
-            if(CHEATAH_PLOT_VK_ROOT)
-                target_include_directories(cheatah_plot_gpu INTERFACE
-                    "${CHEATAH_PLOT_VK_ROOT}/include")
-            endif()
-            if(EXISTS "${CHEATAH_PLOT_VOLK_SRC}/volk.c")
-                enable_language(C)
-                add_library(cheatah_plot_volk STATIC "${CHEATAH_PLOT_VOLK_SRC}/volk.c")
-                target_include_directories(cheatah_plot_volk PUBLIC "${CHEATAH_PLOT_VOLK_SRC}")
-                if(CHEATAH_PLOT_VK_ROOT)
-                    target_include_directories(cheatah_plot_volk PRIVATE
-                        "${CHEATAH_PLOT_VK_ROOT}/include")
-                endif()
-                set_target_properties(cheatah_plot_volk PROPERTIES POSITION_INDEPENDENT_CODE ON)
-                target_link_libraries(cheatah_plot_volk PUBLIC ${CMAKE_DL_LIBS})
-                target_link_libraries(cheatah_plot_gpu INTERFACE cheatah_plot_volk)
-                list(APPEND CHEATAH_PLOT_GPU_LANES "vulkan(volk)")
-            else()
-                target_link_directories(cheatah_plot_gpu INTERFACE "${CHEATAH_PLOT_VK_ROOT}/lib")
-                target_link_libraries(cheatah_plot_gpu INTERFACE vulkan)
-                list(APPEND CHEATAH_PLOT_GPU_LANES "vulkan(-lvulkan)")
-            endif()
-        endif()
+        # VULKAN lane: cheatah-gpu's vk.* forwarders over volk, through the consumer target (the
+        # loader is dlopen'd at runtime, no libvulkan DT_NEEDED). The linalg kernels' own
+        # directory rides along so the same context can still serve them.
+        target_compile_definitions(cheatah_plot_gpu INTERFACE
+            CHEATAH_GPU_LINALG_SPV_DIR="${CHEATAH_GPU_LINALG_CONSUMER_SHADERS}")
+        list(APPEND CHEATAH_PLOT_GPU_LANES vulkan)
 
         # EMULATED-METAL lane: cheatah-gpu's software Metal device + the raster stand-ins —
         # the bit-exact-by-construction mirror of raster_cpu, exercised on this Linux host.
+        # metal-cpp: Apple's MIT-licensed header-only C++ interface to Metal, vendored inside
+        # cheatah-gpu (override with -DCHEATAH_PLOT_METAL_CPP or the CHEATAH_GPU_METAL_CPP env var).
+        if(DEFINED ENV{CHEATAH_GPU_METAL_CPP})
+            set(CHEATAH_PLOT_METAL_CPP "$ENV{CHEATAH_GPU_METAL_CPP}" CACHE PATH "metal-cpp headers")
+        else()
+            set(CHEATAH_PLOT_METAL_CPP "${CHEATAH_GPU_DIR}/third_party/metal-cpp" CACHE PATH "metal-cpp headers")
+        endif()
         if(EXISTS "${CHEATAH_PLOT_METAL_CPP}/Metal" AND
            EXISTS "${CHEATAH_GPU_DIR}/gpu/metal/emulated/emulated_metal.cpp")
-            target_include_directories(cheatah_plot_gpu INTERFACE
-                ${CHEATAH_PLOT_METAL_CPP}
-                ${CHEATAH_GPU_DIR}/gpu/metal/shim)
-            target_compile_definitions(cheatah_plot_gpu INTERFACE CHEATAH_PLOT_GPU_METAL=1)
-            # metal-cpp's documented calling convention needs blocks; cmath first keeps its
-            # math macros out of the way (the same options cheatah-gpu's emulated lane uses).
-            target_compile_options(cheatah_plot_gpu INTERFACE -fblocks -include cmath)
-            target_sources(cheatah_plot_gpu INTERFACE
+            add_library(cheatah_plot_gpu_metal INTERFACE)
+            target_include_directories(cheatah_plot_gpu_metal INTERFACE
+                "${CHEATAH_GPU_LINALG_DIR}/include"
+                "${CHEATAH_GPU_DIR}"
+                "${CHEATAH_PLOT_METAL_CPP}"
+                "${CHEATAH_GPU_DIR}/gpu/metal/shim")
+            target_compile_definitions(cheatah_plot_gpu_metal INTERFACE
+                CHEATAH_PLOT_GPU=1
+                CHEATAH_GPU_LINALG_METAL=1
+                CHEATAH_PLOT_SHADER_DIR="${_shader_dir}")
+            target_compile_options(cheatah_plot_gpu_metal INTERFACE -fblocks -include cmath)
+            target_sources(cheatah_plot_gpu_metal INTERFACE
                 ${CHEATAH_GPU_DIR}/gpu/metal/emulated/emulated_metal.cpp
                 ${CHEATAH_GPU_DIR}/gpu/metal/emulated/block_stubs.cpp)
             list(APPEND CHEATAH_PLOT_GPU_LANES "metal(emulated)")
         endif()
     endif()
 
-    if(CHEATAH_PLOT_GPU_LANES)
-        message(STATUS "cheatah-plot: GPU lanes enabled: ${CHEATAH_PLOT_GPU_LANES} "
-                       "(kernels -> ${_shader_dir})")
-    else()
-        message(STATUS "cheatah-plot: GPU lanes disabled (no usable device stack) — CPU path only")
-    endif()
+    message(STATUS "cheatah-plot: GPU lanes enabled: ${CHEATAH_PLOT_GPU_LANES} "
+                   "(kernels -> ${_shader_dir}; context from ${CHEATAH_GPU_LINALG_DIR})")
 else()
-    message(STATUS "cheatah-plot: GPU lanes disabled (needs slangc + a cheatah-gpu checkout) "
-                   "— CPU path only")
+    message(STATUS "cheatah-plot: GPU lanes disabled (needs slangc + a CONFIGURED cheatah-gpu-linalg "
+                   "checkout) — CPU path only")
 endif()
 
 # --- C++ unit tests: GoogleTest, fetched ONLY under this option --------------------------------
