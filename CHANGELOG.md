@@ -4,6 +4,25 @@ All notable changes to cheatah-plot. This project is **alpha** — expect breaki
 between releases. Public at github.com/BrofessorDoucette/cheatah-plot; a Biome Standard
 member alongside the other cheatah extensions.
 
+## v0.1.1-alpha (2026-08-28) — the rasterizer dispatches on cheatah-gpu-linalg's context
+
+cheatah-plot no longer carries a device context of its own. `plot/renderer/gpu_context.hpp` —
+844 lines of Vulkan and Metal bring-up, buffer pooling and a private lane switch, the third
+implementation of the same class across the extensions — is gone; the renderer dispatches on
+cheatah-gpu-linalg's `detail::Context`, the one compute layer the cheatah stdlib extensions
+share, and hands it the two plot kernels by directory-qualified name (the gpu-linalg 0.4.5
+contract) so they never collide with the linalg kernels the same context serves.
+
+What stays plot's is `gpu_lane.hpp`: the kernel names, the shader directory
+(`CHEATAH_PLOT_SHADER_DIR`, one directory for both backends; `CHEATAH_PLOT_SPV_DIR`,
+`CHEATAH_PLOT_MSL_DIR` and `CHEATAH_PLOT_VK_DEVICE` retire — cheatah-gpu-linalg's
+`CHEATAH_GPU_LINALG_VK_DEVICE` picks the device now), the emulated-Metal stand-ins, and the
+lane accessor. The rasterizer's bytes are unchanged: the emulated lane is still bit-exact with
+`raster_cpu` and the Vulkan lane still holds its per-channel tolerance, each now proven in its
+own test binary because the context is one lane per translation unit. The CMake lanes ride
+cheatah-gpu-linalg's `consumer.cmake` instead of re-deriving volk and the SDK. Requires
+cheatah-gpu-linalg >= 0.4.5.
+
 ## v0.1.0-alpha (2026-08-14) — figures to pixels: the whole plotting stack, on CPU and GPU
 
 The first release carries the whole arc from the `plot.scale` seed to rendered PNGs.
